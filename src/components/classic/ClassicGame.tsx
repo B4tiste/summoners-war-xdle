@@ -357,6 +357,7 @@ export function ClassicGame() {
 
       {/* Header */}
       <div className="text-center space-y-1">
+        <h3>By B4tiste with the help of Layn</h3>
         <h1 className="text-3xl font-bold text-amber-400">
           {selectedMode === "daily" ? "Classic Daily Challenge" : "Classic Free Play"}
         </h1>

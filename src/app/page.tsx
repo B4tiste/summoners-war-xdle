@@ -15,8 +15,8 @@ export default function Home() {
           <h1 className="text-4xl font-bold tracking-tight text-amber-400">
             SWdle
           </h1>
-          <p className="text-zinc-400 text-sm uppercase tracking-widest">
-            Summoners War Sky Arena
+          <p className="text-zinc-300 text-sm uppercase tracking-widest">
+            By B4tiste with the help of Layn
           </p>
         </div>
 
@@ -32,7 +32,7 @@ export default function Home() {
           >
             Play Classic Mode
           </Link>
-          <p className="text-zinc-600 text-xs">More modes coming soon…</p>
+          <p className="text-zinc-300 text-xs">More modes coming soon…</p>
         </div>
       </div>
     </main>
