@@ -24,8 +24,6 @@ import type { TargetSummary } from "@/lib/classic/types";
 
 const GuessBodySchema = z.object({
   slug: z.string().min(1),
-  clientDate: z.string().optional(),
-  tz: z.string().optional(),
   mode: z.enum(["daily", "free"]).optional(),
   targetCom2usId: z.number().int().optional(),
 });
@@ -43,7 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { slug, clientDate, tz, mode = "daily", targetCom2usId } = parsed.data;
+    const { slug, mode = "daily", targetCom2usId } = parsed.data;
 
     // Resolve guessed monster
     const guessMonster = findMonsterBySlug(slug);
@@ -65,7 +63,7 @@ export async function POST(request: NextRequest) {
     const target =
       mode === "free"
         ? findMonsterById(targetCom2usId!)
-        : getDailyTarget(resolvePuzzleDate({ clientDate, tz }));
+        : getDailyTarget(resolvePuzzleDate());
 
     if (!target) {
       return Response.json(

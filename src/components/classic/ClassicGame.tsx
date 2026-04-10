@@ -20,18 +20,55 @@ import {
 import type { GuessResult, TargetSummary } from "@/lib/classic/types";
 
 type PlayMode = "daily" | "free";
+const DAILY_PROGRESS_STORAGE_KEY = "swdle:daily-progress:v1";
 
-function getClientDate(): string {
-  // Returns YYYY-MM-DD in browser local timezone.
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
+function getDateInTimeZone(timeZone: string): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find((p) => p.type === "year")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+  if (!year || !month || !day) return new Date().toISOString().slice(0, 10);
   return `${year}-${month}-${day}`;
 }
 
-function getClientTimeZone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+function getTimeUntilNextParisMidnightMs(): number {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(new Date());
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  const second = Number(parts.find((p) => p.type === "second")?.value ?? "0");
+
+  const elapsedMs = ((hour * 60 + minute) * 60 + second) * 1000;
+  const dayMs = 24 * 60 * 60 * 1000;
+  return Math.max(0, dayMs - elapsedMs);
+}
+
+function formatDurationHhMmSs(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+interface DailyProgressSnapshot {
+  date: string;
+  guesses: GuessResult[];
+  isWin: boolean;
+  targetSummary: TargetSummary | null;
 }
 
 interface PuzzleMeta {
@@ -96,6 +133,8 @@ export function ClassicGame() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
+  const [nextRefreshCountdown, setNextRefreshCountdown] = useState("00:00:00");
+  const hasRestoredDailyProgressRef = useRef(false);
   const winRevealTimeoutRef = useRef<number | null>(null);
   const revealSlugTimeoutRef = useRef<number | null>(null);
   const modeProgressRef = useRef<Record<PlayMode, ModeProgress>>({
@@ -195,9 +234,7 @@ export function ClassicGame() {
   // Load puzzle metadata / free target only when missing for current mode.
   useEffect(() => {
     if (!puzzleMeta) {
-      const clientDate = getClientDate();
-      const tz = getClientTimeZone();
-      const params = new URLSearchParams({ clientDate, tz, mode: selectedMode });
+      const params = new URLSearchParams({ mode: selectedMode });
 
       fetch(`/api/classic/puzzle?${params.toString()}`)
         .then((r) => r.json() as Promise<PuzzleMeta>)
@@ -222,6 +259,86 @@ export function ClassicGame() {
     };
   }, [clearPendingTimers]);
 
+  useEffect(() => {
+    if (selectedMode !== "daily") return;
+
+    const franceDateAtMount = getDateInTimeZone("Europe/Paris");
+    const intervalId = window.setInterval(() => {
+      const currentFranceDate = getDateInTimeZone("Europe/Paris");
+      if (currentFranceDate !== franceDateAtMount) {
+        window.location.reload();
+      }
+    }, 15_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [selectedMode]);
+
+  useEffect(() => {
+    if (selectedMode !== "daily") return;
+
+    const updateCountdown = () => {
+      setNextRefreshCountdown(formatDurationHhMmSs(getTimeUntilNextParisMidnightMs()));
+    };
+
+    updateCountdown();
+    const intervalId = window.setInterval(updateCountdown, 1000);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [selectedMode]);
+
+  useEffect(() => {
+    if (selectedMode !== "daily") return;
+    if (!puzzleMeta?.date) return;
+    if (hasRestoredDailyProgressRef.current) return;
+
+    hasRestoredDailyProgressRef.current = true;
+
+    try {
+      const raw = window.localStorage.getItem(DAILY_PROGRESS_STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as DailyProgressSnapshot;
+      if (!parsed || parsed.date !== puzzleMeta.date) {
+        window.localStorage.removeItem(DAILY_PROGRESS_STORAGE_KEY);
+        return;
+      }
+
+      setGuesses(parsed.guesses ?? []);
+      setIsWin(Boolean(parsed.isWin));
+      setTargetSummary(parsed.targetSummary ?? null);
+      modeProgressRef.current.daily = {
+        ...modeProgressRef.current.daily,
+        puzzleMeta,
+        guesses: parsed.guesses ?? [],
+        isWin: Boolean(parsed.isWin),
+        targetSummary: parsed.targetSummary ?? null,
+      };
+    } catch {
+      window.localStorage.removeItem(DAILY_PROGRESS_STORAGE_KEY);
+    }
+  }, [puzzleMeta, selectedMode]);
+
+  useEffect(() => {
+    if (selectedMode !== "daily") return;
+    if (!puzzleMeta?.date) return;
+
+    const snapshot: DailyProgressSnapshot = {
+      date: puzzleMeta.date,
+      guesses,
+      isWin,
+      targetSummary,
+    };
+
+    try {
+      window.localStorage.setItem(DAILY_PROGRESS_STORAGE_KEY, JSON.stringify(snapshot));
+    } catch {
+      // Ignore storage errors (private mode / quota).
+    }
+  }, [guesses, isWin, puzzleMeta?.date, selectedMode, targetSummary]);
+
   const isGameOver = isWin || isWinRevealPending;
 
   const getShareEmoji = useCallback((status: GuessResult["results"][number]["status"]) => {
@@ -231,11 +348,11 @@ export function ClassicGame() {
   }, []);
 
   const buildShareText = useCallback(() => {
-    const dateLabel = puzzleMeta?.date ?? getClientDate();
+    const dateLabel = puzzleMeta?.date ?? getDateInTimeZone("Europe/Paris");
     const score = isWin ? String(guesses.length) : "X";
     const scoreLine =
       selectedMode === "daily"
-        ? `SWdle Daily ${dateLabel}`
+        ? `I solved the Daily SWdle challenge - ${dateLabel}`
         : `SWdle Free Play ${score}`;
 
     // Guesses are prepended in state; reverse to share in chronological order.
@@ -293,8 +410,6 @@ export function ClassicGame() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             slug: suggestion.slug,
-            clientDate: getClientDate(),
-            tz: getClientTimeZone(),
             mode: selectedMode,
             targetCom2usId:
               selectedMode === "free" ? freeTargetCom2usId ?? undefined : undefined,
@@ -405,11 +520,18 @@ export function ClassicGame() {
           {selectedMode === "daily" ? "Classic Daily Challenge" : "Classic Free Play"}
         </h1>
         {puzzleMeta && (
-          <p className="text-zinc-200 text-sm">
-            {selectedMode === "daily"
-              ? `${puzzleMeta.date} - ${guesses.length} attempts`
-              : `${guesses.length} guesses in this round`}
-          </p>
+          <div className="space-y-1">
+            <p className="text-zinc-200 text-sm">
+              {selectedMode === "daily"
+                ? `${puzzleMeta.date} - ${guesses.length} attempts`
+                : `${guesses.length} guesses in this round`}
+            </p>
+            {selectedMode === "daily" && (
+              <p className="text-zinc-400 text-xs">
+                Next monster refresh in {nextRefreshCountdown}
+              </p>
+            )}
+          </div>
         )}
       </div>
 
@@ -502,7 +624,7 @@ export function ClassicGame() {
             onClick={() => void handleShare()}
             className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-300"
           >
-            Copy result
+            Share your result !
           </button>
           {shareFeedback && <p className="text-xs text-zinc-300">{shareFeedback}</p>}
         </div>

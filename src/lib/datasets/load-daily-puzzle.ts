@@ -12,6 +12,8 @@ import { findMonsterById } from "./load-classic-dataset";
 import type { ClassicMonster } from "@/lib/schemas/classic-monster.schema";
 import type { DailyPuzzleEntry } from "@/lib/classic/types";
 
+const FRANCE_TIME_ZONE = "Europe/Paris";
+
 const PUZZLES_PATH = path.join(
   process.cwd(),
   "data",
@@ -54,60 +56,33 @@ function loadPuzzles(): DailyPuzzleEntry[] {
   return _puzzlesCache;
 }
 
-/**
- * Returns today's date in YYYY-MM-DD format (UTC).
- */
-export function todayUTC(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+/** Returns today's date in YYYY-MM-DD format for France timezone. */
+export function todayFrance(): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: FRANCE_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 
-function normalizeClientDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
-}
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find((p) => p.type === "year")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
 
-function dateInTimeZone(timeZone: string): string | null {
-  try {
-    const formatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-
-    const parts = formatter.formatToParts(new Date());
-    const year = parts.find((p) => p.type === "year")?.value;
-    const month = parts.find((p) => p.type === "month")?.value;
-    const day = parts.find((p) => p.type === "day")?.value;
-
-    if (!year || !month || !day) return null;
-    return `${year}-${month}-${day}`;
-  } catch {
-    return null;
+  if (!year || !month || !day) {
+    return new Date().toISOString().slice(0, 10);
   }
+
+  return `${year}-${month}-${day}`;
 }
 
 /**
- * Resolves puzzle date from browser-provided values with safe fallbacks.
- * Priority:
- * 1) explicit clientDate (YYYY-MM-DD)
- * 2) browser timezone (tz)
- * 3) UTC server date
+ * Resolves puzzle date for daily challenge.
+ * Daily reset is server-authoritative and always follows France timezone.
  */
-export function resolvePuzzleDate(options?: {
-  clientDate?: string | null;
-  tz?: string | null;
-}): string {
-  const explicitDate = normalizeClientDate(options?.clientDate);
-  if (explicitDate) return explicitDate;
-
-  if (options?.tz) {
-    const fromTz = dateInTimeZone(options.tz);
-    if (fromTz) return fromTz;
-  }
-
-  return todayUTC();
+export function resolvePuzzleDate(): string {
+  return todayFrance();
 }
 
 export function shiftIsoDate(date: string, days: number): string {
@@ -121,7 +96,7 @@ export function shiftIsoDate(date: string, days: number): string {
  * Throws if no puzzle is found for that date or if the monster is missing.
  */
 export function getDailyTarget(
-  date: string = todayUTC()
+  date: string = todayFrance()
 ): ClassicMonster {
   const puzzles = loadPuzzles();
   const entry = puzzles.find((p) => p.date === date && p.mode === "classic");
@@ -145,7 +120,7 @@ export function getDailyTarget(
 }
 
 export function getPreviousDailyTarget(
-  date: string = todayUTC()
+  date: string = todayFrance()
 ): ClassicMonster {
   return getDailyTarget(shiftIsoDate(date, -1));
 }

@@ -13,9 +13,7 @@ export function GET(request: NextRequest) {
   try {
     const modeParam = request.nextUrl.searchParams.get("mode");
     const mode = modeParam === "free" ? "free" : "daily";
-    const clientDate = request.nextUrl.searchParams.get("clientDate");
-    const tz = request.nextUrl.searchParams.get("tz");
-    const date = resolvePuzzleDate({ clientDate, tz });
+    const date = resolvePuzzleDate();
     const meta = buildPuzzleMeta(date, mode);
 
     if (mode === "daily") {
