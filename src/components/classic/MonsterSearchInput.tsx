@@ -60,6 +60,18 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
     }, 200);
   }, [query]);
 
+  useEffect(() => {
+    if (disabled) return;
+
+    const focusTimer = window.setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+    };
+  }, [disabled]);
+
   // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
