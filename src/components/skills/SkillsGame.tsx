@@ -89,6 +89,11 @@ interface FreeTargetsResponse {
   error?: string;
 }
 
+interface FreeSolutionResponse {
+  targets?: FoundTarget[];
+  error?: string;
+}
+
 interface PuzzleResponse {
   date?: string;
   mode?: PlayMode;
@@ -355,6 +360,42 @@ export function SkillsGame() {
     }
   }, [fetchFreeTargets, freeTargetCom2usIds, loadPuzzle, resetRound]);
 
+  const handleShowFreePlaySolution = useCallback(async () => {
+    if (
+      selectedMode !== "free" ||
+      !freeTargetCom2usIds ||
+      freeTargetCom2usIds.length !== TARGETS_PER_ROUND ||
+      submitting ||
+      loadingFreeTargets ||
+      isWin
+    ) {
+      return;
+    }
+
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      const res = await fetch("/api/skills/free-solution", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetCom2usIds: freeTargetCom2usIds }),
+      });
+
+      const data = (await res.json()) as FreeSolutionResponse;
+      if (!res.ok || data.error || !data.targets || data.targets.length !== TARGETS_PER_ROUND) {
+        setError(data.error ?? "Failed to reveal the free-play solution.");
+        return;
+      }
+
+      setFoundTargets(data.targets);
+    } catch {
+      setError("Failed to reveal the free-play solution.");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [freeTargetCom2usIds, isWin, loadingFreeTargets, selectedMode, submitting]);
+
   if (loadingPuzzle) {
     return (
       <div className="flex min-h-[200px] items-center justify-center text-zinc-400">
@@ -409,14 +450,26 @@ export function SkillsGame() {
       </div>
 
       {selectedMode === "free" && (
-        <button
-          type="button"
-          onClick={() => void handleRefreshFreePlay()}
-          disabled={loadingFreeTargets || submitting}
-          className="w-full max-w-xl rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-100 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loadingFreeTargets ? "Generating round..." : "Refresh free-play round"}
-        </button>
+        <div className="flex w-full max-w-xl flex-col gap-2 sm:flex-row sm:justify-center">
+          <button
+            type="button"
+            onClick={() => void handleRefreshFreePlay()}
+            disabled={loadingFreeTargets || submitting}
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-100 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            {loadingFreeTargets ? "Generating round..." : "Refresh free-play round"}
+          </button>
+          {!isWin && (
+            <button
+              type="button"
+              onClick={() => void handleShowFreePlaySolution()}
+              disabled={loadingFreeTargets || submitting || !freeTargetCom2usIds}
+              className="w-full rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-300 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              Show solution
+            </button>
+          )}
+        </div>
       )}
 
       <div className="grid w-full max-w-xl grid-cols-3 gap-3 sm:gap-4">

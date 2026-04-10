@@ -92,6 +92,11 @@ interface FreeTargetResponse {
   error?: string;
 }
 
+interface FreeSolutionResponse {
+  targetSummary?: TargetSummary;
+  error?: string;
+}
+
 interface ModeProgress {
   puzzleMeta: PuzzleMeta | null;
   freeTargetCom2usId: number | null;
@@ -439,6 +444,45 @@ export function ClassicGame() {
     await fetchFreeTarget(previousTarget);
   }, [fetchFreeTarget, freeTargetCom2usId, resetRound]);
 
+  const handleShowFreePlaySolution = useCallback(async () => {
+    if (selectedMode !== "free" || freeTargetCom2usId == null || submitting || loadingFreeTarget) {
+      return;
+    }
+
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      const res = await fetch("/api/classic/free-solution", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetCom2usId: freeTargetCom2usId }),
+      });
+
+      const data = (await res.json()) as FreeSolutionResponse;
+      if (!res.ok || data.error || !data.targetSummary) {
+        setError(data.error ?? "Failed to reveal the free-play solution.");
+        return;
+      }
+
+      clearPendingTimers();
+      setRevealingSlug(null);
+      setIsWinRevealPending(false);
+      setTargetSummary(data.targetSummary);
+      setIsWin(true);
+    } catch {
+      setError("Failed to reveal the free-play solution.");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [
+    clearPendingTimers,
+    freeTargetCom2usId,
+    loadingFreeTarget,
+    selectedMode,
+    submitting,
+  ]);
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4 px-3 py-4 sm:gap-6 sm:px-4 sm:py-8">
       {/* Mode menu */}
@@ -530,7 +574,7 @@ export function ClassicGame() {
       </details>
 
       {selectedMode === "free" && (
-        <div className="flex w-full justify-center">
+        <div className="flex w-full flex-col items-center gap-2 sm:flex-row sm:justify-center">
           <button
             type="button"
             onClick={() => void handleRefreshFreePlay()}
@@ -539,6 +583,16 @@ export function ClassicGame() {
           >
             {loadingFreeTarget ? "Generating target..." : "Refresh free-play monster"}
           </button>
+          {!isWin && (
+            <button
+              type="button"
+              onClick={() => void handleShowFreePlaySolution()}
+              disabled={loadingFreeTarget || submitting || freeTargetCom2usId == null}
+              className="w-full rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-300 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              Show solution
+            </button>
+          )}
         </div>
       )}
 
