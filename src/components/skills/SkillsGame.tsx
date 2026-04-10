@@ -460,7 +460,7 @@ export function SkillsGame() {
       )}
 
       {!isWin && selectedMode === "daily" && (
-        <p className="text-xs text-zinc-500">Next monster refresh in {nextRefreshCountdown}</p>
+        <p className="text-xs text-zinc-500">Next monster skills refresh in {nextRefreshCountdown}</p>
       )}
 
       {guesses.length > 0 && (
