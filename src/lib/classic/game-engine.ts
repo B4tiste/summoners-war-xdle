@@ -8,7 +8,7 @@
 import type { ClassicMonster } from "@/lib/schemas/classic-monster.schema";
 import type { GuessResult } from "./types";
 import { CLASSIC_COLUMNS } from "./columns";
-import { evaluateAllColumns, isAllMatch } from "./comparators";
+import { evaluateAllColumns } from "./comparators";
 
 /** Maximum number of guesses allowed per day */
 export const MAX_ATTEMPTS = 10;
@@ -26,7 +26,8 @@ export function processGuess(
   target: ClassicMonster
 ): GuessResult {
   const results = evaluateAllColumns(CLASSIC_COLUMNS, guess, target);
-  const isWin = isAllMatch(results);
+  // Winning must require the exact monster, not only matching compared columns.
+  const isWin = guess.com2usId === target.com2usId;
 
   return {
     guess: {

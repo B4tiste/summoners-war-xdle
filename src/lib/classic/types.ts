@@ -48,7 +48,7 @@ export interface GuessResult {
   guess: Pick<ClassicMonster, "com2usId" | "slug" | "displayName" | "image">;
   /** Per-column comparison results */
   results: ColumnComparisonResult[];
-  /** True if all columns are "match" */
+  /** True if the guessed monster is exactly the target monster */
   isWin: boolean;
 }
 
