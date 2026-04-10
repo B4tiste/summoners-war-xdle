@@ -81,7 +81,13 @@ function ComparisonCell({
       ? formatMoreLessDisplay(result)
       : formattedValue;
 
-  const maxWidth = (isSpeedColumn || isSkillUpsColumn) ? "max-w-[110px]" : isElementColumn ? "max-w-[60px]" : isNaturalStarsColumn ? "max-w-[80px]" : "max-w-[80px]";
+  const maxWidth = isSkillUpsColumn
+    ? "max-w-[110px]"
+    : isElementColumn
+      ? "max-w-[60px]"
+      : isNaturalStarsColumn
+        ? "max-w-[80px]"
+        : "max-w-[80px]";
 
   // Render element image
   if (isElementColumn && result.guessValue) {
@@ -218,13 +224,20 @@ function ComparisonCell({
             : undefined
         }
       >
-        <span className={clsx("text-xs font-bold text-white truncate text-center", maxWidth)}>
+        <span
+          className={clsx(
+            "text-xs font-bold text-white text-center",
+            isSpeedColumn ? "whitespace-nowrap" : ["truncate", maxWidth]
+          )}
+        >
           {displayText}
         </span>
       </div>
       {/* Invisible spacer — gives the <td> its natural dimensions */}
       <div className="invisible px-2 py-1.5 pointer-events-none" aria-hidden="true">
-        <span className={clsx("text-xs font-bold", maxWidth)}>{displayText}</span>
+        <span className={clsx("text-xs font-bold", isSpeedColumn ? "whitespace-nowrap" : maxWidth)}>
+          {displayText}
+        </span>
       </div>
     </td>
   );
