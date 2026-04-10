@@ -73,19 +73,19 @@ function ComparisonCell({
   const formattedValue = formatCellValue(result.guessValue);
   const isSpeedColumn = result.key === "speed";
   const isSkillUpsColumn = result.key === "skillUpsToMax";
-  const isInfernoBaseStatColumn =
+  const isBaseStatColumn =
     result.key === "baseHp" || result.key === "baseAttack" || result.key === "baseDefense";
   const isElementColumn = result.key === "element";
   const isNaturalStarsColumn = result.key === "naturalStars";
 
   const displayText =
-    isSpeedColumn || isSkillUpsColumn || isInfernoBaseStatColumn
+    isSpeedColumn || isSkillUpsColumn || isBaseStatColumn
       ? formatMoreLessDisplay(result)
       : formattedValue;
 
   const maxWidth = isSkillUpsColumn
     ? "max-w-[110px]"
-    : isInfernoBaseStatColumn
+    : isBaseStatColumn
       ? "max-w-[130px]"
     : isElementColumn
       ? "max-w-[60px]"

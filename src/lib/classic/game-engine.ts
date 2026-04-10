@@ -7,16 +7,16 @@
 
 import type { ClassicMonster } from "@/lib/schemas/classic-monster.schema";
 import type { GuessResult } from "./types";
-import { CLASSIC_COLUMNS, INFERNOKULT_COLUMNS } from "./columns";
+import { CLASSIC_COLUMNS, FREEPLAY_EXTENDED_COLUMNS } from "./columns";
 import { evaluateAllColumns } from "./comparators";
 
 /** Maximum number of guesses allowed per day */
 export const MAX_ATTEMPTS = 10;
 
-export type ClassicPlayMode = "daily" | "free" | "infernokult";
+export type ClassicPlayMode = "daily" | "free";
 
 function getColumnsForMode(mode: ClassicPlayMode) {
-  return mode === "infernokult" ? INFERNOKULT_COLUMNS : CLASSIC_COLUMNS;
+  return mode === "free" ? FREEPLAY_EXTENDED_COLUMNS : CLASSIC_COLUMNS;
 }
 
 /**
@@ -57,6 +57,6 @@ export function buildPuzzleMeta(date: string, mode: ClassicPlayMode = "daily") {
     mode,
     date,
     columns: columns.map((c) => ({ key: c.key, label: c.label })),
-    maxAttempts: mode === "free" ? Number.MAX_SAFE_INTEGER : MAX_ATTEMPTS,
+    maxAttempts: mode === "daily" ? MAX_ATTEMPTS : Number.MAX_SAFE_INTEGER,
   };
 }

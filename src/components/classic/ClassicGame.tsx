@@ -19,20 +19,26 @@ import {
 } from "./GuessGrid";
 import type { GuessResult, TargetSummary } from "@/lib/classic/types";
 
-type PlayMode = "daily" | "free" | "infernokult";
+type PlayMode = "daily" | "free";
 
-const MODE_PROGRESS_STORAGE_KEYS: Record<"daily" | "infernokult", string> = {
+const MODE_PROGRESS_STORAGE_KEYS: Record<"daily", string> = {
   daily: "swdle:daily-progress:v1",
-  infernokult: "swdle:infernokult-progress:v1",
 };
 
-function isDateBasedMode(mode: PlayMode): mode is "daily" | "infernokult" {
-  return mode !== "free";
+const BASE_STAT_COLUMN_KEYS = ["baseHp", "baseAttack", "baseDefense"] as const;
+
+function isBaseStatColumnKey(key: string): boolean {
+  return BASE_STAT_COLUMN_KEYS.includes(
+    key as (typeof BASE_STAT_COLUMN_KEYS)[number]
+  );
+}
+
+function isDateBasedMode(mode: PlayMode): mode is "daily" {
+  return mode === "daily";
 }
 
 function getModeTitle(mode: PlayMode): string {
   if (mode === "daily") return "Classic Daily Challenge";
-  if (mode === "infernokult") return "Infernokult";
   return "Classic Free Play";
 }
 
@@ -155,30 +161,28 @@ export function ClassicGame() {
   const [submitting, setSubmitting] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const [nextRefreshCountdown, setNextRefreshCountdown] = useState("00:00:00");
-  const [selectedInfernokultColumnKeys, setSelectedInfernokultColumnKeys] = useState<string[]>([]);
-  const hasRestoredDateModeProgressRef = useRef<Record<"daily" | "infernokult", boolean>>({
+  const [selectedFreeColumnKeys, setSelectedFreeColumnKeys] = useState<string[]>([]);
+  const hasRestoredDateModeProgressRef = useRef<Record<"daily", boolean>>({
     daily: false,
-    infernokult: false,
   });
   const winRevealTimeoutRef = useRef<number | null>(null);
   const revealSlugTimeoutRef = useRef<number | null>(null);
   const modeProgressRef = useRef<Record<PlayMode, ModeProgress>>({
     daily: createEmptyModeProgress(),
     free: createEmptyModeProgress(),
-    infernokult: createEmptyModeProgress(),
   });
 
   const displayedColumnHeaders =
-    selectedMode === "infernokult" && selectedInfernokultColumnKeys.length > 0 && puzzleMeta
-      ? puzzleMeta.columns.filter((col) => selectedInfernokultColumnKeys.includes(col.key))
+    selectedMode === "free" && selectedFreeColumnKeys.length > 0 && puzzleMeta
+      ? puzzleMeta.columns.filter((col) => selectedFreeColumnKeys.includes(col.key))
       : puzzleMeta?.columns ?? [];
 
   const displayedGuesses: GuessResult[] =
-    selectedMode === "infernokult" && selectedInfernokultColumnKeys.length > 0
+    selectedMode === "free" && selectedFreeColumnKeys.length > 0
       ? guesses.map((guess) => ({
           ...guess,
           results: guess.results.filter((result) =>
-            selectedInfernokultColumnKeys.includes(result.key)
+            selectedFreeColumnKeys.includes(result.key)
           ),
         }))
       : guesses;
@@ -209,17 +213,24 @@ export function ClassicGame() {
   }, []);
 
   useEffect(() => {
-    if (selectedMode !== "infernokult") return;
+    if (selectedMode !== "free") return;
     if (!puzzleMeta?.columns?.length) return;
 
-    setSelectedInfernokultColumnKeys((current) => {
+    setSelectedFreeColumnKeys((current) => {
       if (current.length === 0) {
-        return puzzleMeta.columns.map((col) => col.key);
+        // In Free Play, keep base stats disabled by default.
+        return puzzleMeta.columns
+          .map((col) => col.key)
+          .filter((key) => !isBaseStatColumnKey(key));
       }
 
       const validKeys = new Set(puzzleMeta.columns.map((col) => col.key));
       const filtered = current.filter((key) => validKeys.has(key));
-      return filtered.length > 0 ? filtered : puzzleMeta.columns.map((col) => col.key);
+      if (filtered.length > 0) return filtered;
+
+      return puzzleMeta.columns
+        .map((col) => col.key)
+        .filter((key) => !isBaseStatColumnKey(key));
     });
   }, [puzzleMeta, selectedMode]);
 
@@ -304,7 +315,7 @@ export function ClassicGame() {
         );
     }
 
-    if (selectedMode === "free" && freeTargetCom2usId == null && !loadingFreeTarget) {
+    if (selectedMode !== "daily" && freeTargetCom2usId == null && !loadingFreeTarget) {
       void fetchFreeTarget();
     }
   }, [fetchFreeTarget, freeTargetCom2usId, loadingFreeTarget, puzzleMeta, selectedMode]);
@@ -444,8 +455,8 @@ export function ClassicGame() {
     async (suggestion: MonsterSuggestion) => {
       if (isGameOver || submitting) return;
 
-      if (selectedMode === "free" && freeTargetCom2usId == null) {
-        setError("Free-play target is not ready yet. Please wait a second.");
+      if (selectedMode !== "daily" && freeTargetCom2usId == null) {
+        setError("Target is not ready yet. Please wait a second.");
         return;
       }
 
@@ -466,7 +477,7 @@ export function ClassicGame() {
             slug: suggestion.slug,
             mode: selectedMode,
             targetCom2usId:
-              selectedMode === "free" ? freeTargetCom2usId ?? undefined : undefined,
+              selectedMode !== "daily" ? freeTargetCom2usId ?? undefined : undefined,
           }),
         });
 
@@ -484,8 +495,8 @@ export function ClassicGame() {
         };
 
         const columnsCount =
-          selectedMode === "infernokult"
-            ? Math.max(1, selectedInfernokultColumnKeys.length)
+          selectedMode === "free"
+            ? Math.max(1, selectedFreeColumnKeys.length)
             : puzzleMeta?.columns.length ?? data.results.length;
         const revealDurationMs =
           columnsCount * CELL_REVEAL_STAGGER_MS + CELL_REVEAL_DURATION_MS;
@@ -519,7 +530,7 @@ export function ClassicGame() {
       guesses,
       isGameOver,
       puzzleMeta?.columns.length,
-      selectedInfernokultColumnKeys.length,
+      selectedFreeColumnKeys.length,
       selectedMode,
       submitting,
     ]
@@ -608,17 +619,6 @@ export function ClassicGame() {
         >
           Free Play
         </button>
-        <button
-          type="button"
-          onClick={() => handleSwitchMode("infernokult")}
-          className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition-colors sm:w-auto ${
-            selectedMode === "infernokult"
-              ? "bg-amber-400 text-zinc-950"
-              : "bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
-          }`}
-        >
-          Infernokult
-        </button>
       </div>
 
       {/* Header */}
@@ -680,57 +680,62 @@ export function ClassicGame() {
               </p>
             </div>
             <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3 sm:col-span-2">
-              <p className="font-semibold text-zinc-100">Infernokult</p>
+              <p className="font-semibold text-zinc-100">Free Play Column Customization</p>
               <p className="text-zinc-400 text-xs mt-1">
-                Same daily target with extra Base HP, Base ATK and Base DEF columns.
+                In Free Play, you can enable Base HP, Base ATK and Base DEF clues.
               </p>
             </div>
           </div>
         </div>
       </details>
 
-      {selectedMode === "infernokult" && puzzleMeta && (
-        <div className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 sm:p-4">
-          <p className="text-sm font-semibold text-amber-300">Column selection</p>
-          <p className="mt-1 text-xs text-zinc-400">
-            Choose which clues to display in the Infernokult grid.
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-            {puzzleMeta.columns.map((column: ColumnMeta) => {
-              const checked = selectedInfernokultColumnKeys.includes(column.key);
+      {selectedMode === "free" && puzzleMeta && (
+        <details
+          className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 sm:p-4"
+          open={guesses.length === 0}
+        >
+          <summary className="cursor-pointer select-none text-sm font-semibold text-amber-300">
+            Free Play - Column customization
+          </summary>
+          <div className="mt-3 space-y-3">
+            <p className="text-xs text-zinc-400">
+              Choose which clues to display in Free Play. Base HP / Base ATK / Base DEF are disabled by default.
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {puzzleMeta.columns.map((column: ColumnMeta) => {
+                const checked = selectedFreeColumnKeys.includes(column.key);
 
-              return (
-                <label
-                  key={column.key}
-                  className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-2 text-xs text-zinc-200"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => {
-                      setSelectedInfernokultColumnKeys((current) => {
-                        if (checked) {
-                          if (current.length <= 1) return current;
-                          return current.filter((key) => key !== column.key);
-                        }
+                return (
+                  <label
+                    key={column.key}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-2 text-xs text-zinc-200"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        setSelectedFreeColumnKeys((current) => {
+                          if (checked) {
+                            if (current.length <= 1) return current;
+                            return current.filter((key) => key !== column.key);
+                          }
 
-                        return [...current, column.key];
-                      });
-                    }}
-                    className="h-4 w-4 rounded border-zinc-600 bg-zinc-950 text-amber-400 focus:ring-amber-400"
-                  />
-                  <span>{column.label}</span>
-                </label>
-              );
-            })}
+                          return [...current, column.key];
+                        });
+                      }}
+                      className="h-4 w-4 rounded border-zinc-600 bg-zinc-950 text-amber-400 focus:ring-amber-400"
+                    />
+                    <span>{column.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-xs text-zinc-500">At least one column must stay enabled.</p>
           </div>
-          <p className="mt-2 text-xs text-zinc-500">
-            At least one column must stay enabled.
-          </p>
-        </div>
+        </details>
       )}
 
-      {selectedMode === "free" && (
+      {selectedMode !== "daily" && (
         <div className="flex w-full flex-col items-center gap-2 sm:flex-row sm:justify-center">
           <button
             type="button"
@@ -738,7 +743,9 @@ export function ClassicGame() {
             disabled={loadingFreeTarget || submitting || isWinRevealPending}
             className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-100 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
-            {loadingFreeTarget ? "Generating target..." : "Refresh free-play monster"}
+            {loadingFreeTarget
+              ? "Generating target..."
+              : "Refresh free-play monster"}
           </button>
           {!isWin && (
             <button
@@ -804,13 +811,13 @@ export function ClassicGame() {
               submitting ||
               isWinRevealPending ||
               loadingFreeTarget ||
-              (selectedMode === "free" && freeTargetCom2usId == null)
+              (selectedMode !== "daily" && freeTargetCom2usId == null)
             }
           />
           {submitting && (
             <p className="text-zinc-400 text-sm animate-pulse">Checking…</p>
           )}
-          {selectedMode === "free" && loadingFreeTarget && (
+          {selectedMode !== "daily" && loadingFreeTarget && (
             <p className="text-zinc-400 text-sm animate-pulse">Preparing next target…</p>
           )}
         </div>

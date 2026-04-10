@@ -24,7 +24,7 @@ import type { TargetSummary } from "@/lib/classic/types";
 
 const GuessBodySchema = z.object({
   slug: z.string().min(1),
-  mode: z.enum(["daily", "free", "infernokult"]).optional(),
+  mode: z.enum(["daily", "free"]).optional(),
   targetCom2usId: z.number().int().optional(),
 });
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     // Resolve target based on selected mode
     if (mode === "free" && targetCom2usId == null) {
       return Response.json(
-        { error: "Missing targetCom2usId for free mode." },
+        { error: "Missing targetCom2usId for this mode." },
         { status: 400 }
       );
     }

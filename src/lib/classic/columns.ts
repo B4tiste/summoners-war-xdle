@@ -72,9 +72,9 @@ export const CLASSIC_COLUMNS: ColumnDefinition[] = [
 ];
 
 /**
- * Infernokult mode columns: Classic columns plus core base stats.
+ * Free Play extended columns: Classic columns plus core base stats.
  */
-export const INFERNOKULT_COLUMNS: ColumnDefinition[] = [
+export const FREEPLAY_EXTENDED_COLUMNS: ColumnDefinition[] = [
   ...CLASSIC_COLUMNS,
   {
     key: "baseHp",
