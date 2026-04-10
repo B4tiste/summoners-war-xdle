@@ -247,17 +247,17 @@ export function GuessGrid({ guesses, columnHeaders, revealingSlug }: Props) {
   if (guesses.length === 0) return null;
 
   return (
-    <div className="w-full">
-      <table className="w-full border-separate border-spacing-x-2 border-spacing-y-2 text-sm">
+    <div className="w-full max-w-full overflow-x-auto pb-2">
+      <table className="min-w-max border-separate border-spacing-x-1.5 border-spacing-y-1.5 text-xs sm:w-full sm:border-spacing-x-2 sm:border-spacing-y-2 sm:text-sm">
         <thead>
           <tr>
-            <th className="border-b-2 border-zinc-100 px-3 py-2 text-left text-zinc-100 font-medium whitespace-nowrap">
+            <th className="border-b-2 border-zinc-100 px-2 py-2 text-left text-[11px] font-medium whitespace-nowrap text-zinc-100 sm:px-3 sm:text-sm">
               Monster
             </th>
             {columnHeaders.map((col) => (
               <th
                 key={col.key}
-                className="border-b-2 border-zinc-100 px-2 py-2 text-center text-zinc-100 font-medium text-xs whitespace-nowrap"
+                className="border-b-2 border-zinc-100 px-2 py-2 text-center text-[11px] font-medium whitespace-nowrap text-zinc-100 sm:text-xs"
               >
                 {col.label}
               </th>
@@ -270,7 +270,7 @@ export function GuessGrid({ guesses, columnHeaders, revealingSlug }: Props) {
 
             return (
             <tr key={guess.guess.slug}>
-              <td className="px-3 py-2 whitespace-nowrap rounded-xl border border-zinc-700 bg-zinc-950/70">
+              <td className="rounded-xl border border-zinc-700 bg-zinc-950/70 px-2 py-2 whitespace-nowrap sm:px-3">
                 <div className="flex items-center justify-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -278,7 +278,7 @@ export function GuessGrid({ guesses, columnHeaders, revealingSlug }: Props) {
                     alt={guess.guess.displayName}
                     width={40}
                     height={40}
-                    className="rounded-full shrink-0"
+                    className="h-8 w-8 shrink-0 rounded-full sm:h-10 sm:w-10"
                   />
                 </div>
               </td>

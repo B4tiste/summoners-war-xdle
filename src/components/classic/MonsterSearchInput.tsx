@@ -133,7 +133,7 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
   }
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-md">
+    <div ref={containerRef} className="relative w-full max-w-md min-w-0">
       <input
         ref={inputRef}
         type="text"
@@ -152,7 +152,7 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
         <div className="absolute right-3 top-2.5 text-zinc-400 text-sm">…</div>
       )}
       {open && suggestions.length > 0 && (
-        <ul className="absolute z-10 mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 shadow-lg overflow-hidden max-h-90 overflow-y-auto">
+        <ul className="absolute z-10 mt-1 max-h-90 w-full overflow-y-auto overflow-x-hidden rounded-lg border border-zinc-700 bg-zinc-800 shadow-lg">
           {suggestions.map((s, idx) => (
             <li key={s.slug}>
               <button
@@ -161,7 +161,7 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
                 onMouseEnter={() => setFocusedIndex(idx)}
                 onMouseLeave={() => setFocusedIndex(-1)}
                 className={clsx(
-                  "flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-white transition-colors",
+                  "flex w-full min-w-0 items-center gap-3 px-3 py-2 text-left text-sm text-white transition-colors sm:px-4",
                   focusedIndex === idx ? "bg-zinc-600" : "hover:bg-zinc-700"
                 )}
               >
@@ -173,10 +173,10 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
                   height={32}
                   className="rounded-full shrink-0"
                 />
-                <span>
-                  <span className="font-medium">{s.displayName}</span>
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{s.displayName}</span>
                   {s.shortName && s.shortName !== s.displayName && (
-                    <span className="ml-1 text-zinc-400">({s.shortName})</span>
+                    <span className="block truncate text-zinc-400 sm:inline sm:ml-1">({s.shortName})</span>
                   )}
                 </span>
               </button>

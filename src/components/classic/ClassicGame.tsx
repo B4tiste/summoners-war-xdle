@@ -486,13 +486,13 @@ export function ClassicGame() {
   }, [fetchFreeTarget, freeTargetCom2usId, resetRound]);
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full max-w-4xl mx-auto px-4 py-8">
+    <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4 px-3 py-4 sm:gap-6 sm:px-4 sm:py-8">
       {/* Mode menu */}
-      <div className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 p-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
+      <div className="flex w-full flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-2 sm:flex-row sm:items-center sm:justify-center">
         <button
           type="button"
           onClick={() => handleSwitchMode("daily")}
-          className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+          className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition-colors sm:w-auto ${
             selectedMode === "daily"
               ? "bg-amber-400 text-zinc-950"
               : "bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
@@ -503,7 +503,7 @@ export function ClassicGame() {
         <button
           type="button"
           onClick={() => handleSwitchMode("free")}
-          className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+          className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition-colors sm:w-auto ${
             selectedMode === "free"
               ? "bg-amber-400 text-zinc-950"
               : "bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
@@ -514,14 +514,14 @@ export function ClassicGame() {
       </div>
 
       {/* Header */}
-      <div className="text-center space-y-1">
-        <h3>By B4tiste with the help of Layn</h3>
-        <h1 className="text-3xl font-bold text-amber-400">
+      <div className="space-y-1 text-center">
+        <h3 className="px-2 text-xs text-zinc-300 sm:text-sm">By B4tiste with the help of Layn</h3>
+        <h1 className="text-2xl font-bold text-amber-400 sm:text-3xl">
           {selectedMode === "daily" ? "Classic Daily Challenge" : "Classic Free Play"}
         </h1>
         {puzzleMeta && (
           <div className="space-y-1">
-            <p className="text-zinc-200 text-sm">
+            <p className="text-sm text-zinc-200">
               {selectedMode === "daily"
                 ? `${puzzleMeta.date} - ${guesses.length} attempts`
                 : `${guesses.length} guesses in this round`}
@@ -536,8 +536,8 @@ export function ClassicGame() {
       </div>
 
       {/* Helper section */}
-      <details className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 p-4" open={guesses.length === 0}>
-        <summary className="cursor-pointer text-sm font-semibold text-amber-300 select-none">
+      <details className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 sm:p-4" open={guesses.length === 0}>
+        <summary className="cursor-pointer select-none text-sm font-semibold text-amber-300">
           HELPER - How to play
         </summary>
         <div className="mt-3 space-y-3 text-sm text-zinc-300 leading-relaxed">
@@ -576,12 +576,12 @@ export function ClassicGame() {
       </details>
 
       {selectedMode === "free" && (
-        <div className="w-full flex justify-center">
+        <div className="flex w-full justify-center">
           <button
             type="button"
             onClick={() => void handleRefreshFreePlay()}
             disabled={loadingFreeTarget || submitting || isWinRevealPending}
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-100 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-100 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {loadingFreeTarget ? "Generating target..." : "Refresh free-play monster"}
           </button>
@@ -590,21 +590,21 @@ export function ClassicGame() {
 
       {/* Win / Loss banners */}
       {isWin && (
-        <div className="w-full rounded-xl bg-emerald-800 border border-emerald-600 px-6 py-4 text-center">
-          <p className="text-emerald-200 font-semibold text-lg">
+        <div className="w-full rounded-xl border border-emerald-600 bg-emerald-800 px-4 py-4 text-center sm:px-6">
+          <p className="text-base font-semibold text-emerald-200 sm:text-lg">
             🎉 You found it in {guesses.length} guess{guesses.length === 1 ? "" : "es"}!
           </p>
           {targetSummary && (
-            <div className="mt-2 flex items-center justify-center gap-3">
+            <div className="mt-3 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={targetSummary.image}
                 alt={targetSummary.displayName}
                 width={48}
                 height={48}
-                className="rounded-full"
+                className="h-12 w-12 rounded-full"
               />
-              <span className="text-white font-bold text-xl">
+              <span className="text-lg font-bold text-white sm:text-xl">
                 {targetSummary.displayName}
               </span>
             </div>
@@ -618,11 +618,11 @@ export function ClassicGame() {
       )}
 
       {selectedMode === "daily" && isWin && guesses.length > 0 && (
-        <div className="w-full flex flex-col items-center gap-2">
+        <div className="flex w-full flex-col items-center gap-2">
           <button
             type="button"
             onClick={() => void handleShare()}
-            className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-300"
+            className="w-full rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-300 sm:w-auto"
           >
             Share your result !
           </button>
@@ -632,7 +632,7 @@ export function ClassicGame() {
 
       {/* Search input */}
       {!isWin && (
-        <div className="flex flex-col items-center gap-2 w-full">
+        <div className="flex w-full flex-col items-center gap-2">
           <MonsterSearchInput
             onSelect={handleGuess}
             disabled={
@@ -658,20 +658,20 @@ export function ClassicGame() {
 
       {/* Legend */}
       {guesses.length > 0 && (
-        <div className="flex flex-wrap gap-3 text-xs text-zinc-400 justify-center">
-          <span className="flex items-center gap-1">
+        <div className="grid w-full gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 text-xs text-zinc-400 sm:flex sm:flex-wrap sm:justify-center sm:gap-3 sm:border-0 sm:bg-transparent sm:p-0">
+          <span className="flex items-center gap-2">
             <span className="inline-block w-4 h-4 rounded bg-green-700" /> Correct (green)
           </span>
-          <span>|</span>
-          <span className="flex items-center gap-1">
+          <span className="hidden sm:inline">|</span>
+          <span className="flex items-center gap-2">
             <span className="inline-block w-4 h-4 rounded bg-red-700" /> Incorrect (red)
           </span>
-          <span>|</span>
-          <span className="flex items-center gap-1">
+          <span className="hidden sm:inline">|</span>
+          <span className="flex items-center gap-2">
             <span className="inline-block w-4 h-4 rounded bg-red-700" /> More than X : You are looking for a higher value
           </span>
-          <span>|</span>
-          <span className="flex items-center gap-1">
+          <span className="hidden sm:inline">|</span>
+          <span className="flex items-center gap-2">
             <span className="inline-block w-4 h-4 rounded bg-red-700" /> Less than X : You are looking for a lower value
           </span>
         </div>
@@ -683,7 +683,7 @@ export function ClassicGame() {
       )}
 
       {selectedMode === "daily" && puzzleMeta?.previousTargetSummary && (
-        <div className="mt-4 w-full rounded-lg bg-black/30 px-4 py-2 text-center shadow-sm backdrop-blur-[1px]">
+        <div className="mt-2 w-full rounded-lg bg-black/30 px-4 py-3 text-center shadow-sm backdrop-blur-[1px] sm:mt-4 sm:py-2">
           <p className="text-sm font-medium text-white">
             Yesterday&apos;s monster was{" "}
             <span className="text-emerald-400">

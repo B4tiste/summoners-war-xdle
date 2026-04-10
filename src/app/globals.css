@@ -33,6 +33,11 @@ body {
   background-attachment: fixed;
 }
 
+html,
+body {
+  overflow-x: hidden;
+}
+
 body::before {
   content: "";
   position: fixed;
@@ -75,5 +80,11 @@ body > * {
   .classic-cell-flip-out,
   .classic-cell-flip-in {
     animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    background-attachment: scroll;
   }
 }
