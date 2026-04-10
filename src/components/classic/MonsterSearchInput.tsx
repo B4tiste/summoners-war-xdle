@@ -49,11 +49,13 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
           `/api/classic/search?q=${encodeURIComponent(query.trim())}`
         );
         const data = (await res.json()) as { results: MonsterSuggestion[] };
-        setSuggestions(data.results ?? []);
-        setFocusedIndex(-1);
+        const nextSuggestions = data.results ?? [];
+        setSuggestions(nextSuggestions);
+        setFocusedIndex(nextSuggestions.length > 0 ? 0 : -1);
         setOpen(true);
       } catch {
         setSuggestions([]);
+        setFocusedIndex(-1);
       } finally {
         setLoading(false);
       }
