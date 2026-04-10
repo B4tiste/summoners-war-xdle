@@ -644,7 +644,10 @@ export function ClassicGame() {
       </div>
 
       {/* Helper section */}
-      <details className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 sm:p-4" open={guesses.length === 0}>
+      <details
+        className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 sm:p-4"
+        open={selectedMode === "daily" && guesses.length === 0}
+      >
         <summary className="cursor-pointer select-none text-sm font-semibold text-amber-300">
           HELPER - How to play
         </summary>
