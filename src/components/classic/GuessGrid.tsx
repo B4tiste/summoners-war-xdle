@@ -22,11 +22,11 @@ const HALF_FLIP_MS = CELL_REVEAL_DURATION_MS / 2;
 
 const STATUS_STYLES: Record<ComparisonStatus, string> = {
   // ok -> green
-  match: "bg-green-500 text-emerald-950",
+  match: "bg-green-700 text-emerald-950",
   // nok -> red
-  mismatch: "bg-red-500 text-rose-950",
-  higher: "bg-red-500 text-rose-950",
-  lower: "bg-red-500 text-rose-950",
+  mismatch: "bg-red-700 text-rose-950",
+  higher: "bg-red-700 text-rose-950",
+  lower: "bg-red-700 text-rose-950",
   // missing data -> neutral
   unknown: "bg-zinc-700 text-zinc-200",
 };
@@ -132,13 +132,13 @@ export function GuessGrid({ guesses, columnHeaders, revealingSlug }: Props) {
       <table className="w-full border-separate border-spacing-x-2 border-spacing-y-2 text-sm">
         <thead>
           <tr>
-            <th className="px-3 py-2 text-left text-zinc-300 font-medium whitespace-nowrap">
+            <th className="border-b-2 border-zinc-100 px-3 py-2 text-left text-zinc-100 font-medium whitespace-nowrap">
               Monster
             </th>
             {columnHeaders.map((col) => (
               <th
                 key={col.key}
-                className="px-2 py-2 text-center text-zinc-300 font-medium text-xs whitespace-nowrap"
+                className="border-b-2 border-zinc-100 px-2 py-2 text-center text-zinc-100 font-medium text-xs whitespace-nowrap"
               >
                 {col.label}
               </th>
@@ -151,14 +151,14 @@ export function GuessGrid({ guesses, columnHeaders, revealingSlug }: Props) {
 
             return (
             <tr key={guess.guess.slug}>
-              <td className="px-3 py-2 whitespace-nowrap">
+              <td className="px-3 py-2 whitespace-nowrap rounded-xl border border-zinc-700 bg-zinc-950/70">
                 <div className="flex items-center justify-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={guess.guess.image}
                     alt={guess.guess.displayName}
-                    width={28}
-                    height={28}
+                    width={40}
+                    height={40}
                     className="rounded-full shrink-0"
                   />
                 </div>

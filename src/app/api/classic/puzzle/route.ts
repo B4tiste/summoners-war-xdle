@@ -7,7 +7,7 @@
 
 import type { NextRequest } from "next/server";
 import { buildPuzzleMeta } from "@/lib/classic/game-engine";
-import { resolvePuzzleDate } from "@/lib/datasets/load-daily-puzzle";
+import { getPreviousDailyTarget, resolvePuzzleDate } from "@/lib/datasets/load-daily-puzzle";
 
 export function GET(request: NextRequest) {
   try {
@@ -17,6 +17,25 @@ export function GET(request: NextRequest) {
     const tz = request.nextUrl.searchParams.get("tz");
     const date = resolvePuzzleDate({ clientDate, tz });
     const meta = buildPuzzleMeta(date, mode);
+
+    if (mode === "daily") {
+      try {
+        const previousTarget = getPreviousDailyTarget(date);
+
+        return Response.json({
+          ...meta,
+          previousTargetSummary: {
+            com2usId: previousTarget.com2usId,
+            slug: previousTarget.slug,
+            displayName: previousTarget.displayName,
+            image: previousTarget.image,
+          },
+        });
+      } catch {
+        return Response.json(meta);
+      }
+    }
+
     return Response.json(meta);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

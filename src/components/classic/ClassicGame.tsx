@@ -39,6 +39,7 @@ interface PuzzleMeta {
   date: string;
   columns: { key: string; label: string }[];
   maxAttempts: number;
+  previousTargetSummary?: TargetSummary;
 }
 
 interface GuessApiResponse {
@@ -488,17 +489,19 @@ export function ClassicGame() {
       {guesses.length > 0 && (
         <div className="flex flex-wrap gap-3 text-xs text-zinc-400 justify-center">
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-4 rounded bg-green-500" /> Correct (green)
+            <span className="inline-block w-4 h-4 rounded bg-green-700" /> Correct (green)
           </span>
+          <span>|</span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-4 rounded bg-red-500" /> Incorrect (red)
+            <span className="inline-block w-4 h-4 rounded bg-red-700" /> Incorrect (red)
           </span>
-          <br />
+          <span>|</span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-4 rounded bg-red-500" /> More than X : You are looking for a higher value
+            <span className="inline-block w-4 h-4 rounded bg-red-700" /> More than X : You are looking for a higher value
           </span>
+          <span>|</span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-4 h-4 rounded bg-red-500" /> Less than X : You are looking for a lower value
+            <span className="inline-block w-4 h-4 rounded bg-red-700" /> Less than X : You are looking for a lower value
           </span>
         </div>
       )}
@@ -506,6 +509,17 @@ export function ClassicGame() {
       {/* Guess grid */}
       {puzzleMeta && guesses.length > 0 && (
         <GuessGrid guesses={guesses} columnHeaders={puzzleMeta.columns} revealingSlug={revealingSlug} />
+      )}
+
+      {selectedMode === "daily" && puzzleMeta?.previousTargetSummary && (
+        <div className="mt-4 w-full rounded-lg bg-black/30 px-4 py-2 text-center shadow-sm backdrop-blur-[1px]">
+          <p className="text-sm font-medium text-white">
+            Yesterday's monster was{" "}
+            <span className="text-emerald-400">
+              {puzzleMeta.previousTargetSummary.displayName}
+            </span>
+          </p>
+        </div>
       )}
     </div>
   );

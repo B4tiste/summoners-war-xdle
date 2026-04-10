@@ -53,7 +53,7 @@ export const CLASSIC_COLUMNS: ColumnDefinition[] = [
   },
   {
     key: "hasLeaderSkill",
-    label: "Has a leader skill?",
+    label: "Has a leader skill ?",
     type: "bool",
     getValue: (m) => m.hasLeaderSkill,
   },

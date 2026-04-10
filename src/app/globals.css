@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #09090b;
+  --foreground: #ededed;
 }
 
 @theme inline {
@@ -14,7 +14,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #09090b;
     --foreground: #ededed;
   }
 }
@@ -23,34 +23,56 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  position: relative;
+  background-image: url("/site-background.jpg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
 }
 
-/* Classic mode: reveal guessed cells with a left-to-right card flip */
-.classic-cell-reveal {
-  animation: classic-cell-flip 460ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  transform-origin: left center;
-  backface-visibility: hidden;
-  will-change: transform, opacity;
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 80%);
+  pointer-events: none;
+  z-index: 0;
 }
 
-@keyframes classic-cell-flip {
-  0% {
-    transform: perspective(700px) rotateY(-90deg);
-    opacity: 0;
-  }
-  65% {
-    transform: perspective(700px) rotateY(8deg);
-    opacity: 1;
-  }
-  100% {
-    transform: perspective(700px) rotateY(0deg);
-    opacity: 1;
-  }
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Classic mode card flip — phase 1: black overlay squishes away */
+@keyframes classic-flip-out {
+  from { transform: scaleY(1); }
+  to   { transform: scaleY(0); }
+}
+
+/* Classic mode card flip — phase 2: colored layer expands in */
+@keyframes classic-flip-in {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+.classic-cell-flip-out {
+  transform-origin: center center;
+  animation: classic-flip-out linear forwards;
+  will-change: transform;
+}
+
+.classic-cell-flip-in {
+  transform-origin: center center;
+  animation: classic-flip-in linear both;
+  will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .classic-cell-reveal {
+  .classic-cell-flip-out,
+  .classic-cell-flip-in {
     animation: none;
   }
 }
-

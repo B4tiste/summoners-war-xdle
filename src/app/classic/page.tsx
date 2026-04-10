@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function ClassicPage() {
   return (
-    <main className="min-h-screen bg-zinc-950 text-white flex flex-col">
+    <main className="min-h-screen text-white flex flex-col">
       <ClassicGame />
     </main>
   );

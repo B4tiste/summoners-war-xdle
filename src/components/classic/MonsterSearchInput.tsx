@@ -84,7 +84,7 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search a monster…"
+        placeholder="Search a monster to start…"
         disabled={disabled}
         className={clsx(
           "w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-white placeholder-zinc-500",

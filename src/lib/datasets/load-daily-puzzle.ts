@@ -110,6 +110,12 @@ export function resolvePuzzleDate(options?: {
   return todayUTC();
 }
 
+export function shiftIsoDate(date: string, days: number): string {
+  const shifted = new Date(`${date}T00:00:00Z`);
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted.toISOString().slice(0, 10);
+}
+
 /**
  * Resolves the target ClassicMonster for the given date (UTC).
  * Throws if no puzzle is found for that date or if the monster is missing.
@@ -136,4 +142,10 @@ export function getDailyTarget(
   }
 
   return monster;
+}
+
+export function getPreviousDailyTarget(
+  date: string = todayUTC()
+): ClassicMonster {
+  return getDailyTarget(shiftIsoDate(date, -1));
 }
