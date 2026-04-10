@@ -361,7 +361,7 @@ export function ClassicGame() {
           {selectedMode === "daily" ? "Classic Daily Challenge" : "Classic Free Play"}
         </h1>
         {puzzleMeta && (
-          <p className="text-zinc-500 text-sm">
+          <p className="text-zinc-200 text-sm">
             {selectedMode === "daily"
               ? `${puzzleMeta.date} - ${guesses.length}/${maxAttempts} attempts`
               : `${guesses.length} guesses in this round`}
@@ -514,7 +514,7 @@ export function ClassicGame() {
       {selectedMode === "daily" && puzzleMeta?.previousTargetSummary && (
         <div className="mt-4 w-full rounded-lg bg-black/30 px-4 py-2 text-center shadow-sm backdrop-blur-[1px]">
           <p className="text-sm font-medium text-white">
-            Yesterday's monster was{" "}
+            Yesterday&apos;s monster was{" "}
             <span className="text-emerald-400">
               {puzzleMeta.previousTargetSummary.displayName}
             </span>

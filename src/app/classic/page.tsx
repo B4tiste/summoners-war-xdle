@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ClassicGame } from "@/components/classic/ClassicGame";
 
 export const metadata: Metadata = {
-  title: "Classic Mode - SW Xdle",
+  title: "Classic Mode - SWdle",
   description: "Guess today's Summoners War monster in Classic mode.",
 };
 

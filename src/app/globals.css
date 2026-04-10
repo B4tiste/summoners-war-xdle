@@ -25,7 +25,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   min-height: 100vh;
   position: relative;
-  background-image: url("/site-background.jpg");
+  background-image: url("/Images/site-background.jpg");
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;

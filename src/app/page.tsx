@@ -13,7 +13,7 @@ export default function Home() {
       <div className="max-w-lg w-full text-center space-y-8">
         <div className="space-y-2">
           <h1 className="text-4xl font-bold tracking-tight text-amber-400">
-            SW Xdle
+            SWdle
           </h1>
           <p className="text-zinc-400 text-sm uppercase tracking-widest">
             Summoners War Sky Arena

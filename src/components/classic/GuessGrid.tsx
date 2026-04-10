@@ -73,13 +73,119 @@ function ComparisonCell({
   const formattedValue = formatCellValue(result.guessValue);
   const isSpeedColumn = result.key === "speed";
   const isSkillUpsColumn = result.key === "skillUpsToMax";
+  const isElementColumn = result.key === "element";
+  const isNaturalStarsColumn = result.key === "naturalStars";
 
   const displayText =
     isSpeedColumn || isSkillUpsColumn
       ? formatMoreLessDisplay(result)
       : formattedValue;
 
-  const maxWidth = isSpeedColumn || isSkillUpsColumn ? "max-w-[110px]" : "max-w-[80px]";
+  const maxWidth = (isSpeedColumn || isSkillUpsColumn) ? "max-w-[110px]" : isElementColumn ? "max-w-[60px]" : isNaturalStarsColumn ? "max-w-[80px]" : "max-w-[80px]";
+
+  // Render element image
+  if (isElementColumn && result.guessValue) {
+    const elementLower = String(result.guessValue).toLowerCase();
+    return (
+      <td
+        className="rounded-xl border border-zinc-700 overflow-hidden relative bg-zinc-950"
+        title={`${result.label}: ${result.guessValue} (${STATUS_LABELS[result.status]})`}
+      >
+        {shouldReveal && (
+          <div
+            className="absolute inset-0 bg-zinc-950 z-10 classic-cell-flip-out"
+            style={{
+              animationDelay: `${revealDelayMs}ms`,
+              animationDuration: `${HALF_FLIP_MS}ms`,
+            }}
+          />
+        )}
+        <div
+          className={clsx(
+            "absolute inset-0 flex items-center justify-center px-2 py-1.5",
+            style,
+            shouldReveal && "classic-cell-flip-in"
+          )}
+          style={
+            shouldReveal
+              ? {
+                  animationDelay: `${revealDelayMs + HALF_FLIP_MS}ms`,
+                  animationDuration: `${HALF_FLIP_MS}ms`,
+                }
+              : undefined
+          }
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/Images/${elementLower}.png`}
+            alt={elementLower}
+            width={24}
+            height={24}
+            className="w-6 h-6"
+          />
+        </div>
+        <div className="invisible px-2 py-1.5 pointer-events-none" aria-hidden="true">
+          <div className="w-8 h-8" />
+        </div>
+      </td>
+    );
+  }
+
+  // Render natural stars as star images
+  if (isNaturalStarsColumn && result.guessValue) {
+    const starCount = Number(result.guessValue);
+    return (
+      <td
+        className="rounded-xl border border-zinc-700 overflow-hidden relative bg-zinc-950"
+        title={`${result.label}: ${starCount} (${STATUS_LABELS[result.status]})`}
+      >
+        {shouldReveal && (
+          <div
+            className="absolute inset-0 bg-zinc-950 z-10 classic-cell-flip-out"
+            style={{
+              animationDelay: `${revealDelayMs}ms`,
+              animationDuration: `${HALF_FLIP_MS}ms`,
+            }}
+          />
+        )}
+        <div
+          className={clsx(
+            "absolute inset-0 flex items-center justify-center px-2 py-1.5",
+            style,
+            shouldReveal && "classic-cell-flip-in"
+          )}
+          style={
+            shouldReveal
+              ? {
+                  animationDelay: `${revealDelayMs + HALF_FLIP_MS}ms`,
+                  animationDuration: `${HALF_FLIP_MS}ms`,
+                }
+              : undefined
+          }
+        >
+          <div className="flex gap-1">
+            {Array.from({ length: starCount }).map((_, i) => (
+              <img
+                key={i}
+                src="/Images/star.png"
+                alt="star"
+                width={16}
+                height={16}
+                className="w-4 h-4"
+              />
+            ))}
+          </div>
+        </div>
+        <div className="invisible px-2 py-1.5 pointer-events-none" aria-hidden="true">
+          <div className="flex gap-1">
+            {Array.from({ length: Math.max(1, starCount) }).map((_, i) => (
+              <div key={i} className="w-4 h-4" />
+            ))}
+          </div>
+        </div>
+      </td>
+    );
+  }
 
   return (
     <td

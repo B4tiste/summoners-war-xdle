@@ -28,7 +28,9 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
   const [suggestions, setSuggestions] = useState<MonsterSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -48,6 +50,7 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
         );
         const data = (await res.json()) as { results: MonsterSuggestion[] };
         setSuggestions(data.results ?? []);
+        setFocusedIndex(-1);
         setOpen(true);
       } catch {
         setSuggestions([]);
@@ -75,15 +78,54 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
     setQuery("");
     setSuggestions([]);
     setOpen(false);
+    setFocusedIndex(-1);
     onSelect(s);
+    // Auto-focus the input for next guess
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!open || suggestions.length === 0) {
+      // If Enter pressed and only 1 suggestion, auto-select it
+      if (e.key === "Enter" && suggestions.length === 1 && query.trim().length >= 2) {
+        e.preventDefault();
+        handleSelect(suggestions[0]);
+      }
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setFocusedIndex((prev) =>
+        prev < suggestions.length - 1 ? prev + 1 : 0
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setFocusedIndex((prev) =>
+        prev > 0 ? prev - 1 : suggestions.length - 1
+      );
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (focusedIndex >= 0 && focusedIndex < suggestions.length) {
+        handleSelect(suggestions[focusedIndex]);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+      setFocusedIndex(-1);
+    }
   }
 
   return (
     <div ref={containerRef} className="relative w-full max-w-md">
       <input
+        ref={inputRef}
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={handleKeyDown}
         placeholder="Search a monster to start…"
         disabled={disabled}
         className={clsx(
@@ -96,13 +138,18 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
         <div className="absolute right-3 top-2.5 text-zinc-400 text-sm">…</div>
       )}
       {open && suggestions.length > 0 && (
-        <ul className="absolute z-10 mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 shadow-lg overflow-hidden max-h-[360px] overflow-y-auto">
-          {suggestions.map((s) => (
+        <ul className="absolute z-10 mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 shadow-lg overflow-hidden max-h-90 overflow-y-auto">
+          {suggestions.map((s, idx) => (
             <li key={s.slug}>
               <button
                 type="button"
                 onClick={() => handleSelect(s)}
-                className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-white hover:bg-zinc-700 transition-colors"
+                onMouseEnter={() => setFocusedIndex(idx)}
+                onMouseLeave={() => setFocusedIndex(-1)}
+                className={clsx(
+                  "flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-white transition-colors",
+                  focusedIndex === idx ? "bg-zinc-600" : "hover:bg-zinc-700"
+                )}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
