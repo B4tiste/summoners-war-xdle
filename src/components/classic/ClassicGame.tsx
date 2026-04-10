@@ -137,6 +137,7 @@ export function ClassicGame() {
   const [targetSummary, setTargetSummary] = useState<TargetSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const [nextRefreshCountdown, setNextRefreshCountdown] = useState("00:00:00");
   const hasRestoredDailyProgressRef = useRef(false);
   const winRevealTimeoutRef = useRef<number | null>(null);
@@ -344,6 +345,46 @@ export function ClassicGame() {
   }, [guesses, isWin, puzzleMeta?.date, selectedMode, targetSummary]);
 
   const isGameOver = isWin || isWinRevealPending;
+
+  const getShareEmoji = useCallback((status: GuessResult["results"][number]["status"]) => {
+    if (status === "match") return "🟩";
+    if (status === "unknown") return "⬛";
+    return "🟥";
+  }, []);
+
+  const buildShareText = useCallback(() => {
+    const dateLabel = puzzleMeta?.date ?? getDateInTimeZone("Europe/Paris");
+
+    // Guesses are prepended in state; reverse to share in chronological order.
+    const gridRows = [...guesses]
+      .reverse()
+      .map((guess) => guess.results.map((result) => getShareEmoji(result.status)).join(""));
+
+    return [
+      `I solved the Daily SWdle challenge - ${dateLabel}`,
+      "",
+      ...gridRows,
+      "",
+      "Try it:",
+      "https://www.swdle.xyz/",
+    ].join("\n");
+  }, [getShareEmoji, guesses, puzzleMeta?.date]);
+
+  const handleShare = useCallback(async () => {
+    const shareText = buildShareText();
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareText);
+        setShareFeedback("Result copied to clipboard.");
+        return;
+      }
+
+      setShareFeedback("Clipboard is not available on this browser.");
+    } catch {
+      setShareFeedback("Could not copy right now. Please try again.");
+    }
+  }, [buildShareText]);
 
   const handleGuess = useCallback(
     async (suggestion: MonsterSuggestion) => {
@@ -622,6 +663,19 @@ export function ClassicGame() {
               Hit the Refresh Button to start a new round.
             </p>
           )}
+        </div>
+      )}
+
+      {selectedMode === "daily" && isWin && guesses.length > 0 && (
+        <div className="flex w-full flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleShare()}
+            className="w-full rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-300 sm:w-auto"
+          >
+            Share your result
+          </button>
+          {shareFeedback && <p className="text-xs text-zinc-300">{shareFeedback}</p>}
         </div>
       )}
 
