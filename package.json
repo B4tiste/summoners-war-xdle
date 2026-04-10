@@ -11,7 +11,11 @@
     "data:merge": "tsx scripts/merge-datasets.ts",
     "data:classic": "tsx scripts/build-classic-dataset.ts",
     "data:puzzles": "tsx scripts/seed-daily-puzzles.ts",
-    "data:build": "pnpm data:download && pnpm data:merge && pnpm data:classic && pnpm data:puzzles"
+    "data:skills:fetch": "tsx scripts/fetch-skills-icons.ts",
+    "data:skills:build": "tsx scripts/build-skills-dataset.ts",
+    "data:skills:puzzles": "tsx scripts/seed-skills-puzzles.ts",
+    "data:skills": "pnpm data:skills:fetch && pnpm data:skills:build && pnpm data:skills:puzzles",
+    "data:build": "pnpm data:download && pnpm data:merge && pnpm data:classic && pnpm data:puzzles && pnpm data:skills"
   },
   "dependencies": {
     "clsx": "^2.1.1",

@@ -21,9 +21,16 @@ export interface MonsterSuggestion {
 interface Props {
   onSelect: (suggestion: MonsterSuggestion) => void;
   disabled?: boolean;
+  excludeSlugs?: string[];
+  placeholder?: string;
 }
 
-export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
+export function MonsterSearchInput({
+  onSelect,
+  disabled = false,
+  excludeSlugs,
+  placeholder,
+}: Props) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<MonsterSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,7 +56,10 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
           `/api/classic/search?q=${encodeURIComponent(query.trim())}`
         );
         const data = (await res.json()) as { results: MonsterSuggestion[] };
-        const nextSuggestions = data.results ?? [];
+        const allResults = data.results ?? [];
+        const nextSuggestions = excludeSlugs?.length
+          ? allResults.filter((s) => !excludeSlugs.includes(s.slug))
+          : allResults;
         setSuggestions(nextSuggestions);
         setFocusedIndex(nextSuggestions.length > 0 ? 0 : -1);
         setOpen(true);
@@ -60,7 +70,7 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
         setLoading(false);
       }
     }, 200);
-  }, [query]);
+  }, [query, excludeSlugs]);
 
   useEffect(() => {
     if (disabled) return;
@@ -140,7 +150,7 @@ export function MonsterSearchInput({ onSelect, disabled = false }: Props) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Search a monster to start…"
+        placeholder={placeholder ?? "Search a monster to start…"}
         disabled={disabled}
         className={clsx(
           "w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-white placeholder-zinc-500",

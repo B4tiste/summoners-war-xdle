@@ -21,8 +21,9 @@ export default function Home() {
         </div>
 
         <p className="text-sm leading-relaxed text-zinc-300 sm:text-base">
-          Guess the daily Summoners War monster by comparing its element,
-          archetype, stars, and base stats. A new monster is revealed every day!
+          Choose your mode: play Classic to compare monster stats, or play Skills
+          to identify monsters from their skill icons in Daily Challenge or Free
+          Play.
         </p>
 
         <div className="flex flex-col gap-3">
@@ -32,7 +33,12 @@ export default function Home() {
           >
             Play Classic Mode
           </Link>
-          <p className="text-zinc-300 text-xs">More modes coming soon…</p>
+          <Link
+            href="/skills"
+            className="inline-block rounded-xl border border-amber-400 px-6 py-3 text-sm font-semibold text-amber-400 transition-colors hover:bg-amber-400/10 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:ring-offset-zinc-950 sm:px-8 sm:text-base"
+          >
+            Play Skills Mode
+          </Link>
         </div>
       </div>
     </main>
