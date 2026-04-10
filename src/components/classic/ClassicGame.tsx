@@ -702,7 +702,7 @@ export function ClassicGame() {
           </summary>
           <div className="mt-3 space-y-3">
             <p className="text-xs text-zinc-400">
-              Choose which clues to display in Free Play. Base HP / Base ATK / Base DEF are disabled by default.
+              Choose which clues to display in Free Play. Base HP / Base ATK / Base DEF are disabled by default (The values might be irrelevant for non nat5 monsters).
             </p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
               {puzzleMeta.columns.map((column: ColumnMeta) => {
