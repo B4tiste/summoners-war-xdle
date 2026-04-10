@@ -95,6 +95,7 @@ export function ClassicGame() {
   const [targetSummary, setTargetSummary] = useState<TargetSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const winRevealTimeoutRef = useRef<number | null>(null);
   const revealSlugTimeoutRef = useRef<number | null>(null);
   const modeProgressRef = useRef<Record<PlayMode, ModeProgress>>({
@@ -221,10 +222,52 @@ export function ClassicGame() {
     };
   }, [clearPendingTimers]);
 
-  const maxAttempts = puzzleMeta?.maxAttempts ?? 10;
-  const isAttemptLimited = selectedMode === "daily";
-  const hasAttemptsRemaining = !isAttemptLimited || guesses.length < maxAttempts;
-  const isGameOver = isWin || isWinRevealPending || !hasAttemptsRemaining;
+  const isGameOver = isWin || isWinRevealPending;
+
+  const getShareEmoji = useCallback((status: GuessResult["results"][number]["status"]) => {
+    if (status === "match") return "🟩";
+    if (status === "unknown") return "⬛";
+    return "🟥";
+  }, []);
+
+  const buildShareText = useCallback(() => {
+    const dateLabel = puzzleMeta?.date ?? getClientDate();
+    const score = isWin ? String(guesses.length) : "X";
+    const scoreLine =
+      selectedMode === "daily"
+        ? `SWdle Daily ${dateLabel}`
+        : `SWdle Free Play ${score}`;
+
+    // Guesses are prepended in state; reverse to share in chronological order.
+    const gridRows = [...guesses]
+      .reverse()
+      .map((guess) => guess.results.map((result) => getShareEmoji(result.status)).join(""));
+
+    return [
+      scoreLine,
+      "",
+      ...gridRows,
+      "",
+      "Try it :",
+      "https://www.swdle.xyz/",
+    ].join("\n");
+  }, [getShareEmoji, guesses, isWin, puzzleMeta?.date, selectedMode]);
+
+  const handleShare = useCallback(async () => {
+    const shareText = buildShareText();
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareText);
+        setShareFeedback("Result copied to clipboard.");
+        return;
+      }
+
+      setShareFeedback("Clipboard is not available on this browser.");
+    } catch {
+      setShareFeedback("Could not copy right now. Please try again.");
+    }
+  }, [buildShareText]);
 
   const handleGuess = useCallback(
     async (suggestion: MonsterSuggestion) => {
@@ -364,7 +407,7 @@ export function ClassicGame() {
         {puzzleMeta && (
           <p className="text-zinc-200 text-sm">
             {selectedMode === "daily"
-              ? `${puzzleMeta.date} - ${guesses.length}/${maxAttempts} attempts`
+              ? `${puzzleMeta.date} - ${guesses.length} attempts`
               : `${guesses.length} guesses in this round`}
           </p>
         )}
@@ -397,7 +440,7 @@ export function ClassicGame() {
             <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3">
               <p className="font-semibold text-zinc-100">Classic Daily Challenge</p>
               <p className="text-zinc-400 text-xs mt-1">
-                One daily target with a limited number of attempts.
+                One daily target. Keep guessing until you find it.
               </p>
             </div>
             <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3">
@@ -452,16 +495,21 @@ export function ClassicGame() {
         </div>
       )}
 
-      {selectedMode === "daily" && !isWin && guesses.length >= maxAttempts && (
-        <div className="w-full rounded-xl bg-red-900 border border-red-700 px-6 py-4 text-center">
-          <p className="text-red-200 font-semibold">
-            Game over! Come back tomorrow for a new monster.
-          </p>
+      {selectedMode === "daily" && isWin && guesses.length > 0 && (
+        <div className="w-full flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleShare()}
+            className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-300"
+          >
+            Copy result
+          </button>
+          {shareFeedback && <p className="text-xs text-zinc-300">{shareFeedback}</p>}
         </div>
       )}
 
       {/* Search input */}
-      {!isWin && hasAttemptsRemaining && (
+      {!isWin && (
         <div className="flex flex-col items-center gap-2 w-full">
           <MonsterSearchInput
             onSelect={handleGuess}
