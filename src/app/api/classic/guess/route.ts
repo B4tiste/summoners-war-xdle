@@ -24,7 +24,7 @@ import type { TargetSummary } from "@/lib/classic/types";
 
 const GuessBodySchema = z.object({
   slug: z.string().min(1),
-  mode: z.enum(["daily", "free"]).optional(),
+  mode: z.enum(["daily", "free", "infernokult"]).optional(),
   targetCom2usId: z.number().int().optional(),
 });
 
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Evaluate guess
-    const result = processGuess(guessMonster, target);
+    const result = processGuess(guessMonster, target, mode);
 
     // Build response – only expose target identity on win
     const response: typeof result & { targetSummary?: TargetSummary } = result;

@@ -19,8 +19,22 @@ import {
 } from "./GuessGrid";
 import type { GuessResult, TargetSummary } from "@/lib/classic/types";
 
-type PlayMode = "daily" | "free";
-const DAILY_PROGRESS_STORAGE_KEY = "swdle:daily-progress:v1";
+type PlayMode = "daily" | "free" | "infernokult";
+
+const MODE_PROGRESS_STORAGE_KEYS: Record<"daily" | "infernokult", string> = {
+  daily: "swdle:daily-progress:v1",
+  infernokult: "swdle:infernokult-progress:v1",
+};
+
+function isDateBasedMode(mode: PlayMode): mode is "daily" | "infernokult" {
+  return mode !== "free";
+}
+
+function getModeTitle(mode: PlayMode): string {
+  if (mode === "daily") return "Classic Daily Challenge";
+  if (mode === "infernokult") return "Infernokult";
+  return "Classic Free Play";
+}
 
 function getDateInTimeZone(timeZone: string): string {
   const formatter = new Intl.DateTimeFormat("en-CA", {
@@ -78,6 +92,8 @@ interface PuzzleMeta {
   maxAttempts: number;
   previousTargetSummary?: TargetSummary;
 }
+
+type ColumnMeta = PuzzleMeta["columns"][number];
 
 interface GuessApiResponse {
   guess: GuessResult["guess"];
@@ -139,13 +155,33 @@ export function ClassicGame() {
   const [submitting, setSubmitting] = useState(false);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const [nextRefreshCountdown, setNextRefreshCountdown] = useState("00:00:00");
-  const hasRestoredDailyProgressRef = useRef(false);
+  const [selectedInfernokultColumnKeys, setSelectedInfernokultColumnKeys] = useState<string[]>([]);
+  const hasRestoredDateModeProgressRef = useRef<Record<"daily" | "infernokult", boolean>>({
+    daily: false,
+    infernokult: false,
+  });
   const winRevealTimeoutRef = useRef<number | null>(null);
   const revealSlugTimeoutRef = useRef<number | null>(null);
   const modeProgressRef = useRef<Record<PlayMode, ModeProgress>>({
     daily: createEmptyModeProgress(),
     free: createEmptyModeProgress(),
+    infernokult: createEmptyModeProgress(),
   });
+
+  const displayedColumnHeaders =
+    selectedMode === "infernokult" && selectedInfernokultColumnKeys.length > 0 && puzzleMeta
+      ? puzzleMeta.columns.filter((col) => selectedInfernokultColumnKeys.includes(col.key))
+      : puzzleMeta?.columns ?? [];
+
+  const displayedGuesses: GuessResult[] =
+    selectedMode === "infernokult" && selectedInfernokultColumnKeys.length > 0
+      ? guesses.map((guess) => ({
+          ...guess,
+          results: guess.results.filter((result) =>
+            selectedInfernokultColumnKeys.includes(result.key)
+          ),
+        }))
+      : guesses;
 
   const clearPendingTimers = useCallback(() => {
     if (winRevealTimeoutRef.current != null) {
@@ -171,6 +207,21 @@ export function ClassicGame() {
     setSubmitting(progress.submitting);
     setLoadingFreeTarget(progress.loadingFreeTarget);
   }, []);
+
+  useEffect(() => {
+    if (selectedMode !== "infernokult") return;
+    if (!puzzleMeta?.columns?.length) return;
+
+    setSelectedInfernokultColumnKeys((current) => {
+      if (current.length === 0) {
+        return puzzleMeta.columns.map((col) => col.key);
+      }
+
+      const validKeys = new Set(puzzleMeta.columns.map((col) => col.key));
+      const filtered = current.filter((key) => validKeys.has(key));
+      return filtered.length > 0 ? filtered : puzzleMeta.columns.map((col) => col.key);
+    });
+  }, [puzzleMeta, selectedMode]);
 
   const persistCurrentModeProgress = useCallback(
     (mode: PlayMode) => {
@@ -265,7 +316,7 @@ export function ClassicGame() {
   }, [clearPendingTimers]);
 
   useEffect(() => {
-    if (selectedMode !== "daily") return;
+    if (!isDateBasedMode(selectedMode)) return;
 
     const franceDateAtMount = getDateInTimeZone("Europe/Paris");
     const intervalId = window.setInterval(() => {
@@ -281,7 +332,7 @@ export function ClassicGame() {
   }, [selectedMode]);
 
   useEffect(() => {
-    if (selectedMode !== "daily") return;
+    if (!isDateBasedMode(selectedMode)) return;
 
     const updateCountdown = () => {
       setNextRefreshCountdown(formatDurationHhMmSs(getTimeUntilNextParisMidnightMs()));
@@ -295,40 +346,43 @@ export function ClassicGame() {
   }, [selectedMode]);
 
   useEffect(() => {
-    if (selectedMode !== "daily") return;
+    if (!isDateBasedMode(selectedMode)) return;
     if (!puzzleMeta?.date) return;
-    if (hasRestoredDailyProgressRef.current) return;
+    if (hasRestoredDateModeProgressRef.current[selectedMode]) return;
 
-    hasRestoredDailyProgressRef.current = true;
+    hasRestoredDateModeProgressRef.current[selectedMode] = true;
+    const storageKey = MODE_PROGRESS_STORAGE_KEYS[selectedMode];
 
     try {
-      const raw = window.localStorage.getItem(DAILY_PROGRESS_STORAGE_KEY);
+      const raw = window.localStorage.getItem(storageKey);
       if (!raw) return;
 
       const parsed = JSON.parse(raw) as DailyProgressSnapshot;
       if (!parsed || parsed.date !== puzzleMeta.date) {
-        window.localStorage.removeItem(DAILY_PROGRESS_STORAGE_KEY);
+        window.localStorage.removeItem(storageKey);
         return;
       }
 
       setGuesses(parsed.guesses ?? []);
       setIsWin(Boolean(parsed.isWin));
       setTargetSummary(parsed.targetSummary ?? null);
-      modeProgressRef.current.daily = {
-        ...modeProgressRef.current.daily,
+      modeProgressRef.current[selectedMode] = {
+        ...modeProgressRef.current[selectedMode],
         puzzleMeta,
         guesses: parsed.guesses ?? [],
         isWin: Boolean(parsed.isWin),
         targetSummary: parsed.targetSummary ?? null,
       };
     } catch {
-      window.localStorage.removeItem(DAILY_PROGRESS_STORAGE_KEY);
+      window.localStorage.removeItem(storageKey);
     }
   }, [puzzleMeta, selectedMode]);
 
   useEffect(() => {
-    if (selectedMode !== "daily") return;
+    if (!isDateBasedMode(selectedMode)) return;
     if (!puzzleMeta?.date) return;
+
+    const storageKey = MODE_PROGRESS_STORAGE_KEYS[selectedMode];
 
     const snapshot: DailyProgressSnapshot = {
       date: puzzleMeta.date,
@@ -338,7 +392,7 @@ export function ClassicGame() {
     };
 
     try {
-      window.localStorage.setItem(DAILY_PROGRESS_STORAGE_KEY, JSON.stringify(snapshot));
+      window.localStorage.setItem(storageKey, JSON.stringify(snapshot));
     } catch {
       // Ignore storage errors (private mode / quota).
     }
@@ -361,14 +415,14 @@ export function ClassicGame() {
       .map((guess) => guess.results.map((result) => getShareEmoji(result.status)).join(""));
 
     return [
-      `I solved the Daily SWdle challenge - ${dateLabel}`,
+      `I solved the ${getModeTitle(selectedMode)} - ${dateLabel}`,
       "",
       ...gridRows,
       "",
       "Try it:",
       "https://www.swdle.xyz/",
     ].join("\n");
-  }, [getShareEmoji, guesses, puzzleMeta?.date]);
+  }, [getShareEmoji, guesses, puzzleMeta?.date, selectedMode]);
 
   const handleShare = useCallback(async () => {
     const shareText = buildShareText();
@@ -429,7 +483,10 @@ export function ClassicGame() {
           isWin: data.isWin,
         };
 
-        const columnsCount = puzzleMeta?.columns.length ?? data.results.length;
+        const columnsCount =
+          selectedMode === "infernokult"
+            ? Math.max(1, selectedInfernokultColumnKeys.length)
+            : puzzleMeta?.columns.length ?? data.results.length;
         const revealDurationMs =
           columnsCount * CELL_REVEAL_STAGGER_MS + CELL_REVEAL_DURATION_MS;
 
@@ -462,6 +519,7 @@ export function ClassicGame() {
       guesses,
       isGameOver,
       puzzleMeta?.columns.length,
+      selectedInfernokultColumnKeys.length,
       selectedMode,
       submitting,
     ]
@@ -525,7 +583,7 @@ export function ClassicGame() {
   ]);
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4 px-3 py-4 sm:gap-6 sm:px-4 sm:py-8">
+    <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-4 px-3 py-4 sm:gap-6 sm:px-4 sm:py-8">
       {/* Mode menu */}
       <div className="flex w-full flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-2 sm:flex-row sm:items-center sm:justify-center">
         <button
@@ -550,22 +608,33 @@ export function ClassicGame() {
         >
           Free Play
         </button>
+        <button
+          type="button"
+          onClick={() => handleSwitchMode("infernokult")}
+          className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition-colors sm:w-auto ${
+            selectedMode === "infernokult"
+              ? "bg-amber-400 text-zinc-950"
+              : "bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
+          }`}
+        >
+          Infernokult
+        </button>
       </div>
 
       {/* Header */}
       <div className="space-y-1 text-center">
         <h3 className="px-2 text-xs text-zinc-300 sm:text-sm">By B4tiste with the help of Layn</h3>
         <h1 className="text-2xl font-bold text-amber-400 sm:text-3xl">
-          {selectedMode === "daily" ? "Classic Daily Challenge" : "Classic Free Play"}
+          {getModeTitle(selectedMode)}
         </h1>
         {puzzleMeta && (
           <div className="space-y-1">
             <p className="text-sm text-zinc-200">
-              {selectedMode === "daily"
+              {isDateBasedMode(selectedMode)
                 ? `${puzzleMeta.date} - ${guesses.length} attempts`
                 : `${guesses.length} guesses in this round`}
             </p>
-            {selectedMode === "daily" && (
+            {isDateBasedMode(selectedMode) && (
               <p className="text-zinc-400 text-xs">
                 Next monster refresh in {nextRefreshCountdown}
               </p>
@@ -610,9 +679,56 @@ export function ClassicGame() {
                 Unlimited rounds. Use the refresh button to get a new target.
               </p>
             </div>
+            <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3 sm:col-span-2">
+              <p className="font-semibold text-zinc-100">Infernokult</p>
+              <p className="text-zinc-400 text-xs mt-1">
+                Same daily target with extra Base HP, Base ATK and Base DEF columns.
+              </p>
+            </div>
           </div>
         </div>
       </details>
+
+      {selectedMode === "infernokult" && puzzleMeta && (
+        <div className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 sm:p-4">
+          <p className="text-sm font-semibold text-amber-300">Column selection</p>
+          <p className="mt-1 text-xs text-zinc-400">
+            Choose which clues to display in the Infernokult grid.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            {puzzleMeta.columns.map((column: ColumnMeta) => {
+              const checked = selectedInfernokultColumnKeys.includes(column.key);
+
+              return (
+                <label
+                  key={column.key}
+                  className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-2 text-xs text-zinc-200"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => {
+                      setSelectedInfernokultColumnKeys((current) => {
+                        if (checked) {
+                          if (current.length <= 1) return current;
+                          return current.filter((key) => key !== column.key);
+                        }
+
+                        return [...current, column.key];
+                      });
+                    }}
+                    className="h-4 w-4 rounded border-zinc-600 bg-zinc-950 text-amber-400 focus:ring-amber-400"
+                  />
+                  <span>{column.label}</span>
+                </label>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-zinc-500">
+            At least one column must stay enabled.
+          </p>
+        </div>
+      )}
 
       {selectedMode === "free" && (
         <div className="flex w-full flex-col items-center gap-2 sm:flex-row sm:justify-center">
@@ -666,7 +782,7 @@ export function ClassicGame() {
         </div>
       )}
 
-      {selectedMode === "daily" && isWin && guesses.length > 0 && (
+      {isDateBasedMode(selectedMode) && isWin && guesses.length > 0 && (
         <div className="flex w-full flex-col items-center gap-2">
           <button
             type="button"
@@ -728,10 +844,14 @@ export function ClassicGame() {
 
       {/* Guess grid */}
       {puzzleMeta && guesses.length > 0 && (
-        <GuessGrid guesses={guesses} columnHeaders={puzzleMeta.columns} revealingSlug={revealingSlug} />
+        <GuessGrid
+          guesses={displayedGuesses}
+          columnHeaders={displayedColumnHeaders}
+          revealingSlug={revealingSlug}
+        />
       )}
 
-      {selectedMode === "daily" && puzzleMeta?.previousTargetSummary && (
+      {isDateBasedMode(selectedMode) && puzzleMeta?.previousTargetSummary && (
         <div className="mt-2 w-full rounded-lg bg-black/30 px-4 py-3 text-center shadow-sm backdrop-blur-[1px] sm:mt-4 sm:py-2">
           <p className="text-sm font-medium text-white">
             Yesterday&apos;s monster was{" "}

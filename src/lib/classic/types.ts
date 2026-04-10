@@ -14,7 +14,10 @@ export type ClassicColumnKey =
   | "skillUpsToMax"
   | "hasLeaderSkill"
   | "speed"
-  | "hasPassive";
+  | "hasPassive"
+  | "baseHp"
+  | "baseAttack"
+  | "baseDefense";
 
 /**
  * Status results for a single column comparison.

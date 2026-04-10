@@ -70,3 +70,28 @@ export const CLASSIC_COLUMNS: ColumnDefinition[] = [
     getValue: (m) => m.hasPassive,
   },
 ];
+
+/**
+ * Infernokult mode columns: Classic columns plus core base stats.
+ */
+export const INFERNOKULT_COLUMNS: ColumnDefinition[] = [
+  ...CLASSIC_COLUMNS,
+  {
+    key: "baseHp",
+    label: "Base HP",
+    type: "number",
+    getValue: (m) => m.baseHp,
+  },
+  {
+    key: "baseAttack",
+    label: "Base ATK",
+    type: "number",
+    getValue: (m) => m.baseAttack,
+  },
+  {
+    key: "baseDefense",
+    label: "Base DEF",
+    type: "number",
+    getValue: (m) => m.baseDefense,
+  },
+];

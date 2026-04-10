@@ -12,11 +12,16 @@ import { getPreviousDailyTarget, resolvePuzzleDate } from "@/lib/datasets/load-d
 export function GET(request: NextRequest) {
   try {
     const modeParam = request.nextUrl.searchParams.get("mode");
-    const mode = modeParam === "free" ? "free" : "daily";
+    const mode =
+      modeParam === "free"
+        ? "free"
+        : modeParam === "infernokult"
+          ? "infernokult"
+          : "daily";
     const date = resolvePuzzleDate();
     const meta = buildPuzzleMeta(date, mode);
 
-    if (mode === "daily") {
+    if (mode !== "free") {
       try {
         const previousTarget = getPreviousDailyTarget(date);
 

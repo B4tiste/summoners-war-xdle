@@ -7,13 +7,17 @@
 
 import type { ClassicMonster } from "@/lib/schemas/classic-monster.schema";
 import type { GuessResult } from "./types";
-import { CLASSIC_COLUMNS } from "./columns";
+import { CLASSIC_COLUMNS, INFERNOKULT_COLUMNS } from "./columns";
 import { evaluateAllColumns } from "./comparators";
 
 /** Maximum number of guesses allowed per day */
 export const MAX_ATTEMPTS = 10;
 
-export type ClassicPlayMode = "daily" | "free";
+export type ClassicPlayMode = "daily" | "free" | "infernokult";
+
+function getColumnsForMode(mode: ClassicPlayMode) {
+  return mode === "infernokult" ? INFERNOKULT_COLUMNS : CLASSIC_COLUMNS;
+}
 
 /**
  * Processes a single guess and returns the full GuessResult.
@@ -23,9 +27,10 @@ export type ClassicPlayMode = "daily" | "free";
  */
 export function processGuess(
   guess: ClassicMonster,
-  target: ClassicMonster
+  target: ClassicMonster,
+  mode: ClassicPlayMode = "daily"
 ): GuessResult {
-  const results = evaluateAllColumns(CLASSIC_COLUMNS, guess, target);
+  const results = evaluateAllColumns(getColumnsForMode(mode), guess, target);
   // Winning must require the exact monster, not only matching compared columns.
   const isWin = guess.com2usId === target.com2usId;
 
@@ -46,10 +51,12 @@ export function processGuess(
  * Does NOT include the target monster identity.
  */
 export function buildPuzzleMeta(date: string, mode: ClassicPlayMode = "daily") {
+  const columns = getColumnsForMode(mode);
+
   return {
     mode,
     date,
-    columns: CLASSIC_COLUMNS.map((c) => ({ key: c.key, label: c.label })),
+    columns: columns.map((c) => ({ key: c.key, label: c.label })),
     maxAttempts: mode === "free" ? Number.MAX_SAFE_INTEGER : MAX_ATTEMPTS,
   };
 }
