@@ -4,14 +4,22 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "pnpm data:build && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "data:download": "tsx scripts/download-datasets.ts",
+    "data:merge": "tsx scripts/merge-datasets.ts",
+    "data:classic": "tsx scripts/build-classic-dataset.ts",
+    "data:puzzles": "tsx scripts/seed-daily-puzzles.ts",
+    "data:build": "pnpm data:download && pnpm data:merge && pnpm data:classic && pnpm data:puzzles"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
     "next": "16.2.3",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -21,6 +29,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
