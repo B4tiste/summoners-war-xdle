@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Summoners War Xdle",
+  title: "SWdle - A Summoners War Wordle Clone",
   description:
     "A daily Wordle-style guessing game for Summoners War: Sky Arena monsters.",
 };
