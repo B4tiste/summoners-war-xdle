@@ -1,27 +1,30 @@
 /**
  * POST /api/skills/guess
  *
- * Accepts a monster slug guess for the Skills mode.
- * Returns whether the guess is correct and (on win) reveals the target.
+ * Accepts a monster slug guess for Skills mode.
+ * One round has 3 targets. A guess can match one of them.
+ * Win condition: all 3 targets found.
  *
- * Request body: { slug: string, mode?: "daily" | "free", targetCom2usId?: number }
- * Response: { isWin: boolean, targetSummary?: { ... } }
+ * Request body:
+ * { slug: string, mode?: "daily" | "free", targetCom2usIds?: number[], foundSlugs?: string[] }
  */
 
 import { z } from "zod";
 import type { NextRequest } from "next/server";
 import {
   findSkillsMonsterById,
-  findSkillsMonsterBySlug,
-  getDailySkillsTarget,
+  getDailySkillsTargets,
   todayFranceSkills,
 } from "@/lib/datasets/load-skills-dataset";
 import { loadClassicDataset } from "@/lib/datasets/load-classic-dataset";
 
+const TARGETS_PER_ROUND = 3;
+
 const GuessBodySchema = z.object({
   slug: z.string().min(1),
   mode: z.enum(["daily", "free"]).optional(),
-  targetCom2usId: z.number().int().optional(),
+  targetCom2usIds: z.array(z.number().int()).optional(),
+  foundSlugs: z.array(z.string()).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -36,7 +39,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { slug, mode = "daily", targetCom2usId } = parsed.data;
+    const { slug, mode = "daily", targetCom2usIds, foundSlugs = [] } = parsed.data;
 
     // Validate the guessed monster exists in the classic dataset (searchable monsters)
     const classicDataset = loadClassicDataset();
@@ -48,47 +51,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (mode === "free" && targetCom2usId == null) {
+    if (mode === "free" && (!targetCom2usIds || targetCom2usIds.length !== TARGETS_PER_ROUND)) {
       return Response.json(
-        { error: "Missing targetCom2usId for free mode." },
+        { error: `Missing targetCom2usIds for free mode (expected ${TARGETS_PER_ROUND}).` },
         { status: 400 }
       );
     }
 
     const date = todayFranceSkills();
-    const target =
+    const targets =
       mode === "free"
-        ? findSkillsMonsterById(targetCom2usId!)
-        : getDailySkillsTarget(date);
+        ? targetCom2usIds!.map((id) => {
+            const target = findSkillsMonsterById(id);
+            if (!target) {
+              throw new Error(`Free target com2usId=${id} not found.`);
+            }
+            return target;
+          })
+        : getDailySkillsTargets(date, TARGETS_PER_ROUND);
 
-    if (!target) {
-      return Response.json(
-        { error: `Free target com2usId=${targetCom2usId} not found.` },
-        { status: 404 }
-      );
-    }
+    const matchedIndex = targets.findIndex((target) => target.slug === slug);
+    const matchedTarget = matchedIndex >= 0 ? targets[matchedIndex] : undefined;
+    const alreadyFound = foundSlugs.includes(slug);
 
-    const isWin = target.slug === slug;
-
-    if (isWin) {
+    if (!matchedTarget || alreadyFound) {
       return Response.json({
-        isWin: true,
-        targetSummary: {
-          com2usId: target.com2usId,
-          slug: target.slug,
-          displayName: target.displayName,
-          image: target.image,
-          element: target.element,
-          skills: target.skills.map((s) => ({
-            id: s.id,
-            name: s.name,
-            iconUrl: `https://swarfarm.com/static/herders/images/skills/${s.iconFilename}`,
-          })),
-        },
+        isMatch: false,
+        isWin: foundSlugs.length >= TARGETS_PER_ROUND,
+        solvedCount: foundSlugs.length,
+        totalTargets: TARGETS_PER_ROUND,
       });
     }
 
-    return Response.json({ isWin: false });
+    const nextSolvedCount = foundSlugs.length + 1;
+    return Response.json({
+      isMatch: true,
+      isWin: nextSolvedCount >= TARGETS_PER_ROUND,
+      solvedCount: nextSolvedCount,
+      totalTargets: TARGETS_PER_ROUND,
+      matchedSlotId: matchedIndex + 1,
+      matchedTarget: {
+        com2usId: matchedTarget.com2usId,
+        slug: matchedTarget.slug,
+        displayName: matchedTarget.displayName,
+        image: matchedTarget.image,
+        element: matchedTarget.element,
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return Response.json({ error: message }, { status: 500 });

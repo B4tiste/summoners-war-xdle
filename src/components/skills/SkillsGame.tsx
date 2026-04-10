@@ -1,20 +1,17 @@
 "use client";
 
-/**
- * SkillsGame
- *
- * Daily Skills mode: guess the monster from its skill icons.
- * Skill icons start rotated. Every 5 failed attempts,
- * one more icon is fixed from left to right.
- */
-
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { MonsterSearchInput, type MonsterSuggestion } from "@/components/classic/MonsterSearchInput";
 
-const SKILLS_DAILY_STORAGE_KEY = "swdle:skills-progress:v1";
+const SKILLS_DAILY_STORAGE_KEY = "swdle:skills-progress:v2";
+const TARGETS_PER_ROUND = 3;
+
 type PlayMode = "daily" | "free";
 
-/* -------------------- helpers -------------------- */
+function pickRandomRotation(): 90 | 180 | 270 {
+  const values: Array<90 | 180 | 270> = [90, 180, 270];
+  return values[Math.floor(Math.random() * values.length)];
+}
 
 function getDateInTimeZone(timeZone: string): string {
   const formatter = new Intl.DateTimeFormat("en-CA", {
@@ -56,87 +53,111 @@ function formatDurationHhMmSs(ms: number): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function pickRandomRotation(): 90 | 180 | 270 {
-  const rotations: Array<90 | 180 | 270> = [90, 180, 270];
-  return rotations[Math.floor(Math.random() * rotations.length)];
-}
-
-/* -------------------- types -------------------- */
-
 interface SkillInfo {
   id: number;
   name: string;
   iconUrl: string;
 }
 
-interface TargetSummary {
+interface Clue {
+  slotId: number;
+  skill: SkillInfo;
+}
+
+interface FoundTargetSummary {
   com2usId: number;
   slug: string;
   displayName: string;
   image: string;
   element: string;
-  skills: SkillInfo[];
+}
+
+interface FoundTarget {
+  slotId: number;
+  target: FoundTargetSummary;
 }
 
 interface DailyProgressSnapshot {
   date: string;
-  guesses: string[]; // slugs of guessed monsters (in order)
+  guesses: string[];
   guessDisplayNames: string[];
-  isWin: boolean;
-  targetSummary: TargetSummary | null;
+  foundTargets: FoundTarget[];
 }
 
-interface FreeTargetResponse {
-  targetCom2usId: number;
+interface FreeTargetsResponse {
+  targetCom2usIds: number[];
   error?: string;
 }
 
-/* -------------------- component -------------------- */
+interface PuzzleResponse {
+  date?: string;
+  mode?: PlayMode;
+  clues?: Clue[];
+  totalTargets?: number;
+  error?: string;
+}
+
+interface GuessResponse {
+  isMatch: boolean;
+  isWin: boolean;
+  solvedCount: number;
+  totalTargets: number;
+  matchedSlotId?: number;
+  matchedTarget?: FoundTargetSummary;
+  error?: string;
+}
 
 export function SkillsGame() {
   const [selectedMode, setSelectedMode] = useState<PlayMode>("daily");
   const [date, setDate] = useState<string | null>(null);
-  const [skills, setSkills] = useState<SkillInfo[]>([]);
-  const [guesses, setGuesses] = useState<string[]>([]); // slugs
+  const [clues, setClues] = useState<Clue[]>([]);
+  const [freeTargetCom2usIds, setFreeTargetCom2usIds] = useState<number[] | null>(null);
+  const [guesses, setGuesses] = useState<string[]>([]);
   const [guessDisplayNames, setGuessDisplayNames] = useState<string[]>([]);
-  const [isWin, setIsWin] = useState(false);
-  const [targetSummary, setTargetSummary] = useState<TargetSummary | null>(null);
+  const [foundTargets, setFoundTargets] = useState<FoundTarget[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingPuzzle, setLoadingPuzzle] = useState(true);
-  const [freeTargetCom2usId, setFreeTargetCom2usId] = useState<number | null>(null);
-  const [loadingFreeTarget, setLoadingFreeTarget] = useState(false);
+  const [loadingFreeTargets, setLoadingFreeTargets] = useState(false);
   const [nextRefreshCountdown, setNextRefreshCountdown] = useState("00:00:00");
 
   const restoredDailyDateRef = useRef<string | null>(null);
   const currentDateRef = useRef<string | null>(null);
 
+  const isWin = foundTargets.length >= TARGETS_PER_ROUND;
+
+  const foundBySlot = useMemo(() => {
+    return new Map(foundTargets.map((entry) => [entry.slotId, entry.target]));
+  }, [foundTargets]);
+
+  const foundSlugs = useMemo(() => foundTargets.map((entry) => entry.target.slug), [foundTargets]);
+
+  const solvedSlugSet = useMemo(() => new Set(foundSlugs), [foundSlugs]);
+
+  const clueRotations = useMemo(() => {
+    return clues.map(() => pickRandomRotation());
+  }, [clues]);
+
   const resetRound = useCallback(() => {
     setGuesses([]);
     setGuessDisplayNames([]);
-    setIsWin(false);
-    setTargetSummary(null);
+    setFoundTargets([]);
     setError(null);
     setSubmitting(false);
   }, []);
 
-  const loadPuzzle = useCallback(async (mode: PlayMode, targetCom2usId?: number) => {
+  const loadPuzzle = useCallback(async (mode: PlayMode, targetIds?: number[]) => {
     try {
       setLoadingPuzzle(true);
       setError(null);
 
       const params = new URLSearchParams({ mode });
-      if (mode === "free" && targetCom2usId != null) {
-        params.set("targetCom2usId", String(targetCom2usId));
+      if (mode === "free" && targetIds && targetIds.length > 0) {
+        params.set("targetCom2usIds", targetIds.join(","));
       }
 
       const res = await fetch(`/api/skills/puzzle?${params.toString()}`);
-      const data = (await res.json()) as {
-        date?: string;
-        mode?: PlayMode;
-        skills?: SkillInfo[];
-        error?: string;
-      };
+      const data = (await res.json()) as PuzzleResponse;
 
       if (!res.ok || data.error) {
         setError(data.error ?? "Failed to load puzzle.");
@@ -144,7 +165,7 @@ export function SkillsGame() {
       }
 
       setDate(data.date ?? null);
-      setSkills(data.skills ?? []);
+      setClues(data.clues ?? []);
       currentDateRef.current = data.date ?? null;
     } catch {
       setError("Network error while loading puzzle.");
@@ -153,33 +174,37 @@ export function SkillsGame() {
     }
   }, []);
 
-  const fetchFreeTarget = useCallback(async (previousTargetCom2usId?: number) => {
-    setLoadingFreeTarget(true);
+  const fetchFreeTargets = useCallback(async (previousTargetIds?: number[]) => {
+    setLoadingFreeTargets(true);
 
     try {
       const res = await fetch("/api/skills/free-target", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ previousTargetCom2usId }),
+        body: JSON.stringify({ previousTargetCom2usIds: previousTargetIds ?? [] }),
       });
 
-      const data = (await res.json()) as FreeTargetResponse;
-      if (!res.ok || data.error || data.targetCom2usId == null) {
-        setError(data.error ?? "Failed to generate a skills free-play target.");
+      const data = (await res.json()) as FreeTargetsResponse;
+      if (!res.ok || data.error || !Array.isArray(data.targetCom2usIds)) {
+        setError(data.error ?? "Failed to generate a skills free-play round.");
         return null;
       }
 
-      setFreeTargetCom2usId(data.targetCom2usId);
-      return data.targetCom2usId;
+      if (data.targetCom2usIds.length !== TARGETS_PER_ROUND) {
+        setError(`Expected ${TARGETS_PER_ROUND} free-play targets, got ${data.targetCom2usIds.length}.`);
+        return null;
+      }
+
+      setFreeTargetCom2usIds(data.targetCom2usIds);
+      return data.targetCom2usIds;
     } catch {
-      setError("Failed to generate a skills free-play target.");
+      setError("Failed to generate a skills free-play round.");
       return null;
     } finally {
-      setLoadingFreeTarget(false);
+      setLoadingFreeTargets(false);
     }
   }, []);
 
-  /* ---- Load puzzle on mount ---- */
   useEffect(() => {
     void loadPuzzle("daily");
   }, [loadPuzzle]);
@@ -197,42 +222,37 @@ export function SkillsGame() {
         return;
       }
 
-      const nextTarget = await fetchFreeTarget(freeTargetCom2usId ?? undefined);
-      if (nextTarget != null) {
-        await loadPuzzle("free", nextTarget);
+      const ids = await fetchFreeTargets(freeTargetCom2usIds ?? undefined);
+      if (ids) {
+        await loadPuzzle("free", ids);
       }
     },
-    [fetchFreeTarget, freeTargetCom2usId, loadPuzzle, resetRound, selectedMode]
+    [fetchFreeTargets, freeTargetCom2usIds, loadPuzzle, resetRound, selectedMode]
   );
 
-  /* ---- Restore daily progress from localStorage ---- */
   useEffect(() => {
     if (selectedMode !== "daily" || !date) return;
     if (restoredDailyDateRef.current === date) return;
 
     restoredDailyDateRef.current = date;
-
     setGuesses([]);
     setGuessDisplayNames([]);
-    setIsWin(false);
-    setTargetSummary(null);
+    setFoundTargets([]);
 
     try {
       const raw = localStorage.getItem(SKILLS_DAILY_STORAGE_KEY);
       if (!raw) return;
       const snapshot = JSON.parse(raw) as DailyProgressSnapshot;
-      if (snapshot.date !== date) return; // stale
+      if (snapshot.date !== date) return;
 
-      setGuesses(snapshot.guesses);
-      setGuessDisplayNames(snapshot.guessDisplayNames);
-      setIsWin(snapshot.isWin);
-      setTargetSummary(snapshot.targetSummary);
+      setGuesses(snapshot.guesses ?? []);
+      setGuessDisplayNames(snapshot.guessDisplayNames ?? []);
+      setFoundTargets(snapshot.foundTargets ?? []);
     } catch {
-      // Ignore malformed data
+      // Ignore malformed storage
     }
   }, [date, selectedMode]);
 
-  /* ---- Save daily progress to localStorage ---- */
   useEffect(() => {
     if (selectedMode !== "daily") return;
     if (!date) return;
@@ -243,16 +263,14 @@ export function SkillsGame() {
         date,
         guesses,
         guessDisplayNames,
-        isWin,
-        targetSummary,
+        foundTargets,
       };
       localStorage.setItem(SKILLS_DAILY_STORAGE_KEY, JSON.stringify(snapshot));
     } catch {
       // Ignore storage errors
     }
-  }, [date, guessDisplayNames, guesses, isWin, selectedMode, targetSummary]);
+  }, [date, foundTargets, guessDisplayNames, guesses, selectedMode]);
 
-  /* ---- Auto-reload when France date changes ---- */
   useEffect(() => {
     if (selectedMode !== "daily") return;
 
@@ -262,31 +280,29 @@ export function SkillsGame() {
         window.location.reload();
       }
     }, 15_000);
+
     return () => window.clearInterval(interval);
   }, [selectedMode]);
 
-  /* ---- Countdown timer ---- */
   useEffect(() => {
-    function update() {
-      setNextRefreshCountdown(formatDurationHhMmSs(getTimeUntilNextParisMidnightMs()));
-    }
+    const update = () => setNextRefreshCountdown(formatDurationHhMmSs(getTimeUntilNextParisMidnightMs()));
     update();
     const interval = window.setInterval(update, 1_000);
     return () => window.clearInterval(interval);
   }, []);
 
-  /* ---- Submit a guess ---- */
   const handleGuess = useCallback(
     async (suggestion: MonsterSuggestion) => {
       if (isWin || submitting) return;
 
-      if (selectedMode === "free" && freeTargetCom2usId == null) {
-        setError("Free-play target is not ready yet. Please wait a second.");
+      if (selectedMode === "free" && (!freeTargetCom2usIds || freeTargetCom2usIds.length !== TARGETS_PER_ROUND)) {
+        setError("Free-play targets are not ready yet. Please wait a second.");
         return;
       }
 
-      // Prevent duplicate guesses
-      if (guesses.includes(suggestion.slug)) return;
+      if (guesses.includes(suggestion.slug)) {
+        return;
+      }
 
       setSubmitting(true);
       setError(null);
@@ -298,16 +314,12 @@ export function SkillsGame() {
           body: JSON.stringify({
             slug: suggestion.slug,
             mode: selectedMode,
-            targetCom2usId: selectedMode === "free" ? freeTargetCom2usId ?? undefined : undefined,
+            targetCom2usIds: selectedMode === "free" ? freeTargetCom2usIds ?? undefined : undefined,
+            foundSlugs,
           }),
         });
 
-        const data = (await res.json()) as {
-          isWin: boolean;
-          targetSummary?: TargetSummary;
-          error?: string;
-        };
-
+        const data = (await res.json()) as GuessResponse;
         if (!res.ok || data.error) {
           setError(data.error ?? "Guess failed.");
           return;
@@ -316,9 +328,13 @@ export function SkillsGame() {
         setGuesses((prev) => [...prev, suggestion.slug]);
         setGuessDisplayNames((prev) => [...prev, suggestion.displayName]);
 
-        if (data.isWin) {
-          setIsWin(true);
-          setTargetSummary(data.targetSummary ?? null);
+        if (data.isMatch && data.matchedTarget && data.matchedSlotId) {
+          setFoundTargets((prev) => {
+            if (prev.some((entry) => entry.target.slug === data.matchedTarget!.slug)) {
+              return prev;
+            }
+            return [...prev, { slotId: data.matchedSlotId!, target: data.matchedTarget! }];
+          });
         }
       } catch {
         setError("Network error. Please try again.");
@@ -326,39 +342,28 @@ export function SkillsGame() {
         setSubmitting(false);
       }
     },
-    [freeTargetCom2usId, guesses, isWin, selectedMode, submitting]
+    [freeTargetCom2usIds, foundSlugs, guesses, isWin, selectedMode, submitting]
   );
 
   const handleRefreshFreePlay = useCallback(async () => {
-    const previousTarget = freeTargetCom2usId ?? undefined;
+    const previous = freeTargetCom2usIds ?? undefined;
     resetRound();
 
-    const nextTarget = await fetchFreeTarget(previousTarget);
-    if (nextTarget != null) {
-      await loadPuzzle("free", nextTarget);
+    const ids = await fetchFreeTargets(previous);
+    if (ids) {
+      await loadPuzzle("free", ids);
     }
-  }, [fetchFreeTarget, freeTargetCom2usId, loadPuzzle, resetRound]);
+  }, [fetchFreeTargets, freeTargetCom2usIds, loadPuzzle, resetRound]);
 
-  const initialRotations = useMemo(() => {
-    return skills.map(() => pickRandomRotation());
-  }, [skills]);
-
-  /* ---- Derived: how many icons are fixed ---- */
-  // Every 5 failed attempts fixes one icon from left to right.
-  // If won, all icons are fixed.
-  const failedAttempts = isWin ? guesses.length - 1 : guesses.length;
-  const fixedCount = isWin ? skills.length : Math.min(Math.floor(failedAttempts / 5), skills.length);
-
-  /* ---- Render ---- */
   if (loadingPuzzle) {
     return (
       <div className="flex min-h-[200px] items-center justify-center text-zinc-400">
-        Loading today&apos;s skills challenge…
+        Loading today&apos;s skills challenge...
       </div>
     );
   }
 
-  if (error && skills.length === 0) {
+  if (error && clues.length === 0) {
     return (
       <div className="flex min-h-[200px] items-center justify-center text-red-400">
         {error}
@@ -368,7 +373,6 @@ export function SkillsGame() {
 
   return (
     <div className="flex flex-col items-center gap-4 px-3 py-4 sm:gap-6 sm:px-4 sm:py-8">
-      {/* Mode menu */}
       <div className="flex w-full max-w-xl flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-2 sm:flex-row sm:items-center sm:justify-center">
         <button
           type="button"
@@ -394,14 +398,13 @@ export function SkillsGame() {
         </button>
       </div>
 
-      {/* Header */}
       <div className="flex w-full max-w-xl flex-col items-center gap-1 text-center">
         <h2 className="text-xl font-bold text-amber-400 sm:text-2xl">
           {selectedMode === "daily" ? "Skills Daily Challenge" : "Skills Free Play"}
         </h2>
         <h3 className="px-2 text-xs text-zinc-300 sm:text-sm">By B4tiste with the help of Layn</h3>
         <p className="text-xs text-zinc-400">
-          Guess the monster from its skill icons. Icons are randomly rotated, and every 5 failed attempts fixes one icon.
+          Three random spells from three different monsters are shown. Find all three monsters.
         </p>
       </div>
 
@@ -409,88 +412,57 @@ export function SkillsGame() {
         <button
           type="button"
           onClick={() => void handleRefreshFreePlay()}
-          disabled={loadingFreeTarget || submitting}
+          disabled={loadingFreeTargets || submitting}
           className="w-full max-w-xl rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-100 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loadingFreeTarget ? "Generating target..." : "Refresh free-play monster"}
+          {loadingFreeTargets ? "Generating round..." : "Refresh free-play round"}
         </button>
       )}
 
-      {/* Skill icons grid */}
-      <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
-        {skills.map((skill, index) => {
-          const isFixed = index < fixedCount;
-          const rotation = isFixed ? 0 : (initialRotations[index] ?? 90);
+      <div className="grid w-full max-w-xl grid-cols-3 gap-3 sm:gap-4">
+        {clues.map((clue) => {
+          const found = foundBySlot.get(clue.slotId);
           return (
-            <div key={skill.id} className="flex flex-col items-center gap-1">
-              <div
-                className={[
-                  "relative h-14 w-14 overflow-hidden rounded-xl border-2 sm:h-16 sm:w-16",
-                  isFixed ? "border-amber-400" : "border-zinc-600",
-                  "transition-all duration-700",
-                ].join(" ")}
-                title={isFixed ? skill.name : "???"}
-              >
+            <div key={clue.slotId} className="flex flex-col items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900/70 p-3 text-center">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Spell {clue.slotId}</div>
+              <div className={["h-14 w-14 overflow-hidden rounded-lg border-2 sm:h-16 sm:w-16", found ? "border-amber-400" : "border-zinc-600"].join(" ")}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={skill.iconUrl}
-                  alt={isFixed ? skill.name : "???"}
-                  className={[
-                    "h-full w-full object-cover",
-                    isWin ? "grayscale-0" : "grayscale",
-                    "transition-transform duration-700",
-                  ].join(" ")}
-                  style={{ transform: `rotate(${rotation}deg)` }}
+                  src={clue.skill.iconUrl}
+                  alt={`Spell ${clue.slotId}`}
+                  className={["h-full w-full object-cover transition-transform duration-700", found ? "grayscale-0" : "grayscale"].join(" ")}
+                  style={{ transform: `rotate(${found ? 0 : (clueRotations[clue.slotId - 1] ?? 90)}deg)` }}
                 />
               </div>
-              {isFixed && (
-                <span className="max-w-[64px] text-center text-[10px] leading-tight text-zinc-300 sm:max-w-[72px]">
-                  {skill.name}
-                </span>
+              {found ? (
+                <div className="text-[10px] text-emerald-300">{found.displayName}</div>
+              ) : (
+                <div className="text-[10px] text-zinc-500">Monster not found yet</div>
               )}
             </div>
           );
         })}
       </div>
 
-      {/* Win state */}
-      {isWin && targetSummary && (
-        <div className="flex w-full max-w-xl flex-col items-center gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-center sm:flex-row sm:gap-4 sm:text-left">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={targetSummary.image}
-            alt={targetSummary.displayName}
-            className="h-16 w-16 shrink-0 rounded-full border-2 border-amber-400"
-          />
-          <div className="flex flex-col gap-1">
-            <p className="text-sm text-amber-400">
-              🎉 {targetSummary.displayName}
-            </p>
-            <p className="text-xs text-zinc-300">
-              Found in {guesses.length} guess{guesses.length > 1 ? "es" : ""}!
-            </p>
-            {selectedMode === "daily" && (
-              <p className="text-xs text-zinc-400">
-                Next Skills challenge in {nextRefreshCountdown}
-              </p>
-            )}
-            {selectedMode === "free" && (
-              <p className="text-xs text-zinc-400">
-                Refresh free play to start a new round.
-              </p>
-            )}
-          </div>
+      {isWin && (
+        <div className="w-full max-w-xl rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4 text-center">
+          <p className="text-sm text-amber-400">All {TARGETS_PER_ROUND} monsters found.</p>
+          <p className="text-xs text-zinc-300">
+            Solved in {guesses.length} guess{guesses.length > 1 ? "es" : ""}.
+          </p>
+          {selectedMode === "daily" && (
+            <p className="text-xs text-zinc-400">Next Skills challenge in {nextRefreshCountdown}</p>
+          )}
+          {selectedMode === "free" && (
+            <p className="text-xs text-zinc-400">Refresh free play to start a new round.</p>
+          )}
         </div>
       )}
 
-      {/* Countdown (not won) */}
       {!isWin && selectedMode === "daily" && (
-        <p className="text-xs text-zinc-500">
-          Next monster refresh in {nextRefreshCountdown}
-        </p>
+        <p className="text-xs text-zinc-500">Next monster refresh in {nextRefreshCountdown}</p>
       )}
 
-      {/* Guess history */}
       {guesses.length > 0 && (
         <div className="w-full max-w-xl">
           <p className="mb-2 text-center text-xs text-zinc-400">
@@ -498,14 +470,15 @@ export function SkillsGame() {
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             {guessDisplayNames.map((name, i) => {
-              const isLastAndWin = isWin && i === guesses.length - 1;
+              const slug = guesses[i];
+              const isSolved = solvedSlugSet.has(slug);
               return (
                 <span
-                  key={guesses[i]}
+                  key={`${slug}-${i}`}
                   className={[
                     "rounded-full px-3 py-1 text-xs",
-                    isLastAndWin
-                      ? "bg-green-700/60 text-green-200"
+                    isSolved
+                      ? "bg-emerald-700/60 text-emerald-200"
                       : "bg-zinc-700/60 text-zinc-300 line-through",
                   ].join(" ")}
                 >
@@ -517,19 +490,15 @@ export function SkillsGame() {
         </div>
       )}
 
-      {/* Error message */}
-      {error && (
-        <p className="text-xs text-red-400">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-400">{error}</p>}
 
-      {/* Search input */}
       {!isWin && (
         <div className="w-full max-w-xl">
           <MonsterSearchInput
             onSelect={handleGuess}
             disabled={submitting || isWin}
             excludeSlugs={guesses}
-            placeholder={selectedMode === "daily" ? "Type a monster name…" : "Type a monster name for free play…"}
+            placeholder="Type a monster name..."
           />
         </div>
       )}

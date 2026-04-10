@@ -1,9 +1,9 @@
 /**
  * POST /api/skills/free-target
  *
- * Returns a random eligible monster target for Skills free play.
- * If previousTargetCom2usId is provided, avoid returning the same target
- * consecutively whenever possible.
+ * Returns 3 unique random eligible monster targets for Skills free play.
+ * If previousTargetCom2usIds are provided, avoid immediately repeating them
+ * when possible.
  */
 
 import { z } from "zod";
@@ -11,8 +11,10 @@ import type { NextRequest } from "next/server";
 import { loadSkillsDataset } from "@/lib/datasets/load-skills-dataset";
 
 const FreeTargetBodySchema = z.object({
-  previousTargetCom2usId: z.number().int().optional(),
+  previousTargetCom2usIds: z.array(z.number().int()).optional(),
 });
+
+const TARGETS_PER_ROUND = 3;
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,26 +28,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { previousTargetCom2usId } = parsed.data;
+    const { previousTargetCom2usIds = [] } = parsed.data;
     const eligible = loadSkillsDataset();
 
-    if (eligible.length === 0) {
+    if (eligible.length < TARGETS_PER_ROUND) {
       return Response.json(
-        { error: "No eligible monsters available for skills free play." },
+        { error: `Not enough eligible monsters to generate ${TARGETS_PER_ROUND} free-play targets.` },
         { status: 500 }
       );
     }
 
+    const previousSet = new Set(previousTargetCom2usIds);
     const candidates =
-      previousTargetCom2usId != null && eligible.length > 1
-        ? eligible.filter((m) => m.com2usId !== previousTargetCom2usId)
+      previousSet.size > 0 && eligible.length > TARGETS_PER_ROUND
+        ? eligible.filter((m) => !previousSet.has(m.com2usId))
         : eligible;
 
     const pool = candidates.length > 0 ? candidates : eligible;
-    const index = Math.floor(Math.random() * pool.length);
-    const target = pool[index];
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const targets = shuffled.slice(0, TARGETS_PER_ROUND);
 
-    return Response.json({ targetCom2usId: target.com2usId });
+    if (targets.length < TARGETS_PER_ROUND) {
+      return Response.json(
+        { error: `Failed to pick ${TARGETS_PER_ROUND} unique targets.` },
+        { status: 500 }
+      );
+    }
+
+    return Response.json({ targetCom2usIds: targets.map((t) => t.com2usId) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return Response.json({ error: message }, { status: 500 });

@@ -27,6 +27,7 @@ const PUZZLES_PATH = path.join(
 );
 
 const FRANCE_TIME_ZONE = "Europe/Paris";
+const DAILY_TARGETS_COUNT = 3;
 
 let _datasetCache: SkillsMonster[] | null = null;
 let _puzzlesCache: { date: string; mode: string; targetCom2usId: number }[] | null = null;
@@ -107,4 +108,40 @@ export function getDailySkillsTarget(date: string = todayFranceSkills()): Skills
   }
 
   return monster;
+}
+
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+export function getDailySkillsTargets(
+  date: string = todayFranceSkills(),
+  count: number = DAILY_TARGETS_COUNT
+): SkillsMonster[] {
+  const dataset = loadSkillsDataset();
+  if (dataset.length < count) {
+    throw new Error(`Not enough monsters in skills dataset to pick ${count} targets.`);
+  }
+
+  const first = getDailySkillsTarget(date);
+  const picked = new Map<number, SkillsMonster>([[first.com2usId, first]]);
+
+  const start = hashString(`skills-multi:${date}`) % dataset.length;
+  let cursor = start;
+
+  while (picked.size < count) {
+    const monster = dataset[cursor % dataset.length];
+    if (!picked.has(monster.com2usId)) {
+      picked.set(monster.com2usId, monster);
+    }
+    cursor += 1;
+  }
+
+  return Array.from(picked.values());
 }
