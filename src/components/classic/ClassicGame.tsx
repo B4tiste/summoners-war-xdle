@@ -425,8 +425,10 @@ export function ClassicGame() {
       .reverse()
       .map((guess) => guess.results.map((result) => getShareEmoji(result.status)).join(""));
 
+    const attemptCount = guesses.length;
+
     return [
-      `I solved the ${getModeTitle(selectedMode)} - ${dateLabel}`,
+      `I solved the ${getModeTitle(selectedMode)} - ${dateLabel} (${attemptCount} attempts)`,
       "",
       ...gridRows,
       "",
